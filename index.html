@@ -33,7 +33,7 @@
       z-index: 20;
     }
     .card {
-      width: min(720px, 100%);
+      width: min(760px, 100%);
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 16px;
@@ -70,6 +70,7 @@
       cursor: pointer;
     }
     button:hover { filter: brightness(1.08); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     .sub-btn { background: #64748b; color: #f8fafc; }
     .status {
       min-height: 1.4em;
@@ -89,7 +90,7 @@
     }
     .panel {
       position: absolute;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(2, 6, 23, 0.72);
       border: 1px solid var(--line);
       border-radius: 10px;
       padding: 10px;
@@ -100,6 +101,7 @@
       left: 12px;
       width: min(460px, calc(100vw - 24px));
       pointer-events: auto;
+      background: rgba(2, 6, 23, 0.82);
     }
     #chatLog {
       max-height: 210px;
@@ -116,7 +118,7 @@
     #chatInputRow { display: none; }
     #chatInputRow.active { display: flex; gap: 8px; }
     #chatInput {
-      background: rgba(2, 6, 23, 0.9);
+      background: rgba(2, 6, 23, 0.94);
       border: 1px solid var(--line);
       color: var(--text);
       flex: 1;
@@ -139,7 +141,6 @@
       border-radius: 50%;
     }
     .hint { color: #bae6fd; font-size: 0.85rem; }
-    .ok { color: var(--ok); }
   </style>
 </head>
 <body>
@@ -155,6 +156,7 @@
         <button id="loginBtn">ログイン</button>
         <button id="registerBtn" class="sub-btn">新規登録</button>
       </div>
+      <div id="libStatus" class="status">ライブラリを読み込み中...</div>
       <p class="hint">※ データはこのブラウザの LocalStorage に保存され、アップデート後も同じアカウントでログインできます。</p>
       <div id="loginStatus" class="status"></div>
     </div>
@@ -201,9 +203,6 @@
     <div id="crosshair"></div>
   </div>
 
-  <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
   <script>
     const ACCOUNT_KEY = 'slime_accounts_v2';
     const LAST_USER_KEY = 'slime_last_user_v2';
@@ -218,6 +217,7 @@
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const loginStatus = document.getElementById('loginStatus');
+    const libStatus = document.getElementById('libStatus');
 
     const quickPlayBtn = document.getElementById('quickPlayBtn');
     const joinRoomBtn = document.getElementById('joinRoomBtn');
@@ -234,6 +234,7 @@
     const netState = document.getElementById('netState');
 
     const state = {
+      libsReady: false,
       username: '',
       sceneReady: false,
       networkMode: 'solo',
@@ -291,18 +292,11 @@
     async function registerAccount(username, password) {
       const key = normalizeUsername(username);
       const accounts = loadAccounts();
-      if (accounts[key]) {
-        throw new Error('そのユーザー名は既に使われています');
-      }
+      if (accounts[key]) throw new Error('そのユーザー名は既に使われています');
 
       const salt = crypto.randomUUID();
       const passHash = await sha256(`${salt}:${password}`);
-      accounts[key] = {
-        username,
-        salt,
-        passHash,
-        createdAt: new Date().toISOString(),
-      };
+      accounts[key] = { username, salt, passHash, createdAt: new Date().toISOString() };
       saveAccounts(accounts);
       localStorage.setItem(LAST_USER_KEY, username);
       return username;
@@ -359,7 +353,7 @@
 
     function createPeer(desiredId) {
       return new Promise((resolve, reject) => {
-        const peer = desiredId ? new Peer(desiredId) : new Peer();
+        const peer = desiredId ? new window.Peer(desiredId) : new window.Peer();
         let opened = false;
 
         peer.on('open', (id) => {
@@ -417,27 +411,83 @@
     let slimeMesh, slimeShellMesh, slimeBody;
     let remoteGroup;
 
+    function waitForLibraries(timeoutMs = 15000) {
+      return new Promise((resolve, reject) => {
+        const start = performance.now();
+        const timer = setInterval(() => {
+          if (window.THREE && window.CANNON && window.Peer) {
+            clearInterval(timer);
+            resolve();
+            return;
+          }
+          if (performance.now() - start > timeoutMs) {
+            clearInterval(timer);
+            reject(new Error('ライブラリ読み込みタイムアウト'));
+          }
+        }, 100);
+      });
+    }
+
+    function loadScriptFromList(urls) {
+      return new Promise((resolve, reject) => {
+        const tryLoad = (idx) => {
+          if (idx >= urls.length) {
+            reject(new Error('全CDNで読み込みに失敗'));
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = urls[idx];
+          script.async = true;
+          script.onload = () => resolve(urls[idx]);
+          script.onerror = () => {
+            script.remove();
+            tryLoad(idx + 1);
+          };
+          document.head.appendChild(script);
+        };
+        tryLoad(0);
+      });
+    }
+
+    async function ensureLibrariesLoaded() {
+      await loadScriptFromList([
+        'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js',
+        'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js'
+      ]);
+      await loadScriptFromList([
+        'https://unpkg.com/three@0.161.0/build/three.min.js',
+        'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js'
+      ]);
+      await loadScriptFromList([
+        'https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js',
+        'https://unpkg.com/cannon@0.6.2/build/cannon.min.js'
+      ]);
+      await waitForLibraries();
+      state.libsReady = true;
+      setStatus(libStatus, 'ライブラリ読み込み完了');
+    }
+
     function createSlimeMaterial() {
-      return new THREE.MeshPhysicalMaterial({
+      return new window.THREE.MeshPhysicalMaterial({
         color: 0x5eead4,
-        metalness: 0.22,
-        roughness: 0.06,
-        transmission: 0.82,
+        metalness: 0.2,
+        roughness: 0.03,
+        transmission: 0.95,
         transparent: true,
-        opacity: 0.9,
-        thickness: 1.6,
+        opacity: 0.94,
+        thickness: 2.1,
         ior: 1.35,
         clearcoat: 1,
-        clearcoatRoughness: 0.08,
+        clearcoatRoughness: 0.06,
         specularIntensity: 1,
         reflectivity: 0.95,
       });
     }
 
-    function initScene() {
-      if (!window.THREE || !window.CANNON) {
-        throw new Error('3Dライブラリの読み込みに失敗しました。ネット接続を確認してください。');
-      }
+    async function initScene() {
+      await waitForLibraries();
+      const THREE = window.THREE;
+      const CANNON = window.CANNON;
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x87ceeb);
@@ -450,40 +500,38 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.1;
+      renderer.toneMappingExposure = 1.12;
       gameRoot.appendChild(renderer.domElement);
 
-      const hemi = new THREE.HemisphereLight(0xffffff, 0x88aaff, 0.95);
-      scene.add(hemi);
-
-      const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x88aaff, 0.95));
+      const sun = new THREE.DirectionalLight(0xffffff, 1.25);
       sun.position.set(9, 18, 8);
       scene.add(sun);
 
-      const rim = new THREE.PointLight(0x99ddff, 0.7, 40);
+      const rim = new THREE.PointLight(0x99ddff, 0.8, 45);
       rim.position.set(-4, 4, -4);
       scene.add(rim);
 
-      const groundGeo = new THREE.PlaneGeometry(2000, 2000, 1, 1);
-      const groundMat = new THREE.MeshStandardMaterial({ color: 0x6ee7b7, roughness: 0.95, metalness: 0.02 });
-      const floorMesh = new THREE.Mesh(groundGeo, groundMat);
+      const floorMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(2000, 2000),
+        new THREE.MeshStandardMaterial({ color: 0x6ee7b7, roughness: 0.95, metalness: 0.02 })
+      );
       floorMesh.rotation.x = -Math.PI / 2;
-      floorMesh.position.y = 0;
       scene.add(floorMesh);
 
       slimeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), createSlimeMaterial());
       slimeMesh.position.set(0, 2, 0);
 
       slimeShellMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(1.05, 48, 48),
+        new THREE.SphereGeometry(1.06, 48, 48),
         new THREE.MeshPhysicalMaterial({
           color: 0xb6fff6,
           transparent: true,
-          opacity: 0.22,
-          roughness: 0.03,
+          opacity: 0.2,
+          roughness: 0.02,
           metalness: 0.05,
           transmission: 1,
-          thickness: 0.5,
+          thickness: 0.7,
         })
       );
       slimeMesh.add(slimeShellMesh);
@@ -517,8 +565,9 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    function controlStep(dt) {
+    function controlStep(dt, nowMs) {
       if (state.isChatTyping) return;
+      const CANNON = window.CANNON;
 
       const speed = 14;
       const force = new CANNON.Vec3(0, 0, 0);
@@ -534,13 +583,14 @@
       if (state.keys['Space'] && state.canJump) {
         slimeBody.velocity.y = 10;
         state.canJump = false;
-        state.squash = Math.max(state.squash, 0.25);
-        state.jitter = 0.14;
+        state.squash = Math.max(state.squash, 0.26);
+        state.jitter = 0.16;
       }
 
       const horizontalSpeed = Math.hypot(slimeBody.velocity.x, slimeBody.velocity.z);
-      const wobble = Math.min(0.26, horizontalSpeed * 0.016) + state.squash;
-      const pulse = 0.06 * Math.sin(performance.now() * 0.03);
+      const wobble = Math.min(0.28, horizontalSpeed * 0.017) + state.squash;
+      const pulse = 0.065 * Math.sin(nowMs * 0.032);
+      const tremble = 0.02 * Math.sin(nowMs * 0.17);
 
       const targetY = 1 + wobble * 0.9 + pulse;
       const targetXZ = 1 - wobble * 0.48;
@@ -548,20 +598,23 @@
       state.localScale.y += (targetY - state.localScale.y) * Math.min(1, dt * 13);
       state.localScale.z += (targetXZ - state.localScale.z) * Math.min(1, dt * 13);
 
-      const jitterX = (Math.random() - 0.5) * state.jitter;
-      const jitterZ = (Math.random() - 0.5) * state.jitter;
+      const jitterX = (Math.random() - 0.5) * state.jitter + tremble;
+      const jitterZ = (Math.random() - 0.5) * state.jitter - tremble;
       slimeMesh.scale.set(state.localScale.x + jitterX, state.localScale.y, state.localScale.z + jitterZ);
-      slimeShellMesh.rotation.y += 0.6 * dt;
+      slimeMesh.rotation.y = 0.04 * Math.sin(nowMs * 0.01);
+      slimeShellMesh.rotation.y += 0.75 * dt;
 
       state.squash *= Math.max(0, 1 - dt * 6.2);
-      state.jitter *= Math.max(0, 1 - dt * 5.4);
+      state.jitter *= Math.max(0, 1 - dt * 5.0);
+
       if (nearGround && Math.abs(slimeBody.velocity.y) < 0.65) {
-        state.squash = Math.max(state.squash, 0.09);
-        state.jitter = Math.max(state.jitter, 0.03);
+        state.squash = Math.max(state.squash, 0.1);
+        state.jitter = Math.max(state.jitter, 0.04);
       }
     }
 
     function updateCamera() {
+      const THREE = window.THREE;
       const p = slimeMesh.position;
       const desired = new THREE.Vector3(p.x + 0.2, p.y + 4.9, p.z + 9.0);
       camera.position.lerp(desired, 0.07);
@@ -570,15 +623,16 @@
 
     function applyRemoteState(peerId, data) {
       if (!state.sceneReady || !remoteGroup) return;
+      const THREE = window.THREE;
       let remote = state.remotePlayers.get(peerId);
       if (!remote) {
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 40), new THREE.MeshPhysicalMaterial({
           color: 0x60a5fa,
           metalness: 0.2,
           roughness: 0.12,
-          transmission: 0.7,
+          transmission: 0.72,
           transparent: true,
-          opacity: 0.82,
+          opacity: 0.84,
         }));
         remoteGroup.add(mesh);
         remote = { mesh };
@@ -590,7 +644,7 @@
 
     function removeRemote(peerId) {
       const remote = state.remotePlayers.get(peerId);
-      if (!remote) return;
+      if (!remote || !remoteGroup) return;
       remoteGroup.remove(remote.mesh);
       remote.mesh.geometry.dispose();
       remote.mesh.material.dispose();
@@ -602,6 +656,7 @@
       const now = performance.now();
       if (now - state.lastSyncAt < 90) return;
       state.lastSyncAt = now;
+
       broadcast({
         type: 'state',
         name: state.username,
@@ -619,7 +674,8 @@
       if (!state.sceneReady) return;
       const dt = Math.min(0.05, (now - prevTime) / 1000);
       prevTime = now;
-      controlStep(dt);
+
+      controlStep(dt, now);
       world.step(1 / 60, dt, 3);
 
       slimeMesh.position.set(slimeBody.position.x, slimeBody.position.y, slimeBody.position.z);
@@ -649,6 +705,11 @@
     }
 
     async function startGame(networkMode, room) {
+      if (!state.libsReady) {
+        setStatus(menuStatus, 'ライブラリ読み込み待機中です。少し待ってください。', true);
+        return;
+      }
+
       loginScreen.classList.add('hidden');
       menuScreen.classList.add('hidden');
       gameRoot.classList.remove('hidden');
@@ -657,7 +718,7 @@
 
       if (!state.sceneReady) {
         try {
-          initScene();
+          await initScene();
         } catch (err) {
           gameRoot.classList.add('hidden');
           hud.classList.add('hidden');
@@ -712,76 +773,95 @@
       }
     }
 
-    quickPlayBtn.addEventListener('click', async () => {
-      setStatus(menuStatus, 'クイックプレイを開始します...');
-      await startGame('online', 'quick-flat');
-    });
+    function bindUIEvents() {
+      loginBtn.addEventListener('click', handleLogin);
+      registerBtn.addEventListener('click', handleRegister);
 
-    joinRoomBtn.addEventListener('click', async () => {
-      const room = roomInput.value.trim();
-      if (!room) {
-        setStatus(menuStatus, '部屋番号を入力してください', true);
-        return;
+      quickPlayBtn.addEventListener('click', async () => {
+        setStatus(menuStatus, 'クイックプレイを開始します...');
+        await startGame('online', 'quick-flat');
+      });
+
+      joinRoomBtn.addEventListener('click', async () => {
+        const room = roomInput.value.trim();
+        if (!room) {
+          setStatus(menuStatus, '部屋番号を入力してください', true);
+          return;
+        }
+        setStatus(menuStatus, `部屋 ${room} へ入室します...`);
+        await startGame('online', room);
+      });
+
+      soloBtn.addEventListener('click', async () => {
+        setStatus(menuStatus, 'シングルプレイで開始します');
+        await startGame('solo', 'solo');
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (!state.sceneReady) return;
+
+        if ((e.code === 'KeyT' || e.code === 'Enter') && !state.isChatTyping) {
+          e.preventDefault();
+          toggleChatInput(true);
+          return;
+        }
+
+        if (state.isChatTyping && e.code === 'Enter') {
+          e.preventDefault();
+          sendChatMessage(chatInput.value);
+          toggleChatInput(false);
+          return;
+        }
+
+        if (state.isChatTyping && e.code === 'Escape') {
+          e.preventDefault();
+          toggleChatInput(false);
+          return;
+        }
+
+        state.keys[e.code] = true;
+      });
+
+      document.addEventListener('keyup', (e) => {
+        state.keys[e.code] = false;
+      });
+
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.code === 'Enter') {
+          e.preventDefault();
+          sendChatMessage(chatInput.value);
+          toggleChatInput(false);
+        }
+      });
+
+      usernameInput.addEventListener('keydown', (e) => {
+        if (e.code === 'Enter') handleLogin();
+      });
+
+      passwordInput.addEventListener('keydown', (e) => {
+        if (e.code === 'Enter') handleLogin();
+      });
+    }
+
+    async function bootstrap() {
+      bindUIEvents();
+
+      usernameInput.value = localStorage.getItem(LAST_USER_KEY) || '';
+      quickPlayBtn.disabled = true;
+      joinRoomBtn.disabled = true;
+      soloBtn.disabled = true;
+
+      try {
+        await ensureLibrariesLoaded();
+        quickPlayBtn.disabled = false;
+        joinRoomBtn.disabled = false;
+        soloBtn.disabled = false;
+      } catch (err) {
+        setStatus(libStatus, `ライブラリ読み込み失敗: ${err.message}`, true);
       }
-      setStatus(menuStatus, `部屋 ${room} へ入室します...`);
-      await startGame('online', room);
-    });
+    }
 
-    soloBtn.addEventListener('click', async () => {
-      setStatus(menuStatus, 'シングルプレイで開始します');
-      await startGame('solo', 'solo');
-    });
-
-    loginBtn.addEventListener('click', handleLogin);
-    registerBtn.addEventListener('click', handleRegister);
-
-    document.addEventListener('keydown', (e) => {
-      if (!state.sceneReady) return;
-
-      if ((e.code === 'KeyT' || e.code === 'Enter') && !state.isChatTyping) {
-        e.preventDefault();
-        toggleChatInput(true);
-        return;
-      }
-
-      if (state.isChatTyping && e.code === 'Enter') {
-        e.preventDefault();
-        sendChatMessage(chatInput.value);
-        toggleChatInput(false);
-        return;
-      }
-
-      if (state.isChatTyping && e.code === 'Escape') {
-        e.preventDefault();
-        toggleChatInput(false);
-        return;
-      }
-
-      state.keys[e.code] = true;
-    });
-
-    document.addEventListener('keyup', (e) => {
-      state.keys[e.code] = false;
-    });
-
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter') {
-        e.preventDefault();
-        sendChatMessage(chatInput.value);
-        toggleChatInput(false);
-      }
-    });
-
-    usernameInput.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter') handleLogin();
-    });
-
-    passwordInput.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter') handleLogin();
-    });
-
-    // initial fill (old account re-login support in same browser)
-    usernameInput.value = localStorage.getItem(LAST_USER_KEY) || '';
+    window.addEventListener('DOMContentLoaded', bootstrap);
   </script>
 </body>
 </html>

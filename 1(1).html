@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P2P マルチプレイ・チャット</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --border: #dbe2ee;
+      --self: #ecf3ff;
+      --other: #f3f4f6;
+      --system: #eefbf3;
+      --danger: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Noto Sans JP", "Yu Gothic", sans-serif;
+      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .app {
+      width: min(900px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.08);
+      overflow: hidden;
+    }
+
+    .hidden { display: none !important; }
+
+    .view { padding: 24px; }
+
+    h1, h2 { margin: 0 0 12px; }
+    p { margin: 0 0 16px; color: var(--muted); }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input, button {
+      font: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    input {
+      flex: 1;
+      min-width: 200px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s ease;
+    }
+
+    button:hover { background: var(--primary-hover); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .status {
+      margin-top: 12px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      min-height: 1.4em;
+    }
+
+    .status.error { color: var(--danger); }
+
+    .topbar {
+      background: #f8faff;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #e8f0ff;
+      color: #1e40af;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: .88rem;
+      max-width: fit-content;
+    }
+
+    .chat-layout {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      min-height: 68vh;
+    }
+
+    .log {
+      padding: 16px;
+      overflow-y: auto;
+      background: #fcfdff;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      max-width: min(80ch, 100%);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.self { background: var(--self); align-self: flex-end; }
+    .msg.other { background: var(--other); align-self: flex-start; }
+    .msg.system { background: var(--system); align-self: center; color: #166534; font-size: .93rem; }
+
+    .msg .name { font-weight: 700; margin-right: 6px; }
+
+    .compose {
+      border-top: 1px solid var(--border);
+      background: #fff;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .help {
+      font-size: .85rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      .view { padding: 18px; }
+      .topbar { padding: 12px; }
+      input { min-width: 120px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="loginView" class="view">
+      <h1>マルチプレイ・チャット（P2P）</h1>
+      <p>最初にユーザー名を入力してください。ログイン後に自分の接続IDが発行されます。</p>
+      <div class="row">
+        <input id="usernameInput" type="text" maxlength="24" placeholder="ユーザー名（例: Taro）" />
+        <button id="loginBtn">ログイン</button>
+      </div>
+      <div id="loginStatus" class="status"></div>
+    </section>
+
+    <section id="chatView" class="hidden">
+      <header class="topbar">
+        <div class="row">
+          <strong>ユーザー:</strong><span id="myName">-</span>
+          <span class="badge">あなたの接続ID: <strong id="myPeerId">-</strong></span>
+        </div>
+        <div class="row">
+          <input id="peerIdInput" type="text" placeholder="相手の接続IDを入力" />
+          <button id="connectBtn">接続</button>
+        </div>
+        <div id="connectStatus" class="status"></div>
+      </header>
+
+      <div class="chat-layout">
+        <div id="chatLog" class="log"></div>
+
+        <footer class="compose">
+          <div class="row">
+            <input id="messageInput" type="text" placeholder="メッセージを入力" />
+            <button id="sendBtn" disabled>送信</button>
+          </div>
+          <div class="help">接続後に送信できます。相手の画面には「ユーザー名: メッセージ」が表示されます。</div>
+        </footer>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <script>
+    const loginView = document.getElementById('loginView');
+    const chatView = document.getElementById('chatView');
+    const loginStatus = document.getElementById('loginStatus');
+    const connectStatus = document.getElementById('connectStatus');
+    const usernameInput = document.getElementById('usernameInput');
+    const myNameEl = document.getElementById('myName');
+    const myPeerIdEl = document.getElementById('myPeerId');
+    const peerIdInput = document.getElementById('peerIdInput');
+    const chatLog = document.getElementById('chatLog');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    const loginBtn = document.getElementById('loginBtn');
+    const connectBtn = document.getElementById('connectBtn');
+
+    let myName = '';
+    let peer = null;
+    let conn = null;
+
+    const setStatus = (el, text, isError = false) => {
+      el.textContent = text;
+      el.classList.toggle('error', isError);
+    };
+
+    const addMessage = (type, name, text) => {
+      const item = document.createElement('div');
+      item.className = `msg ${type}`;
+
+      if (type === 'system') {
+        item.textContent = text;
+      } else {
+        item.innerHTML = `<span class="name"></span><span class="body"></span>`;
+        item.querySelector('.name').textContent = `${name}:`;
+        item.querySelector('.body').textContent = ` ${text}`;
+      }
+
+      chatLog.appendChild(item);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    };
+
+    const bindConnection = (newConn, outgoing = false) => {
+      if (conn && conn.open) {
+        conn.close();
+      }
+      conn = newConn;
+
+      conn.on('open', () => {
+        setStatus(connectStatus, `接続中: ${conn.peer}`);
+        sendBtn.disabled = false;
+        addMessage('system', '', `「${conn.peer}」と接続しました。`);
+        if (outgoing) {
+          conn.send({ type: 'system', text: `${myName} が接続しました。` });
+        }
+      });
+
+      conn.on('data', (data) => {
+        if (!data || typeof data !== 'object') return;
+
+        if (data.type === 'chat') {
+          addMessage('other', data.name || '相手', data.text || '');
+        } else if (data.type === 'system') {
+          addMessage('system', '', data.text || 'システムメッセージ');
+        }
+      });
+
+      conn.on('close', () => {
+        sendBtn.disabled = true;
+        setStatus(connectStatus, '接続が切断されました。');
+        addMessage('system', '', '接続が切断されました。');
+      });
+
+      conn.on('error', (err) => {
+        setStatus(connectStatus, `接続エラー: ${err.message || err}`, true);
+      });
+    };
+
+    const setupPeer = () => {
+      peer = new Peer();
+
+      peer.on('open', (id) => {
+        myPeerIdEl.textContent = id;
+        setStatus(connectStatus, '相手の接続IDを入力して接続してください。');
+      });
+
+      peer.on('connection', (incomingConn) => {
+        setStatus(connectStatus, `着信接続: ${incomingConn.peer}`);
+        bindConnection(incomingConn, false);
+      });
+
+      peer.on('error', (err) => {
+        setStatus(connectStatus, `Peer エラー: ${err.type || err.message || err}`, true);
+      });
+
+      peer.on('disconnected', () => {
+        setStatus(connectStatus, 'Peerサーバーから切断されました。再接続します...');
+        peer.reconnect();
+      });
+    };
+
+    loginBtn.addEventListener('click', () => {
+      const inputName = usernameInput.value.trim();
+      if (!inputName) {
+        setStatus(loginStatus, 'ユーザー名を入力してください。', true);
+        return;
+      }
+
+      myName = inputName;
+      myNameEl.textContent = myName;
+
+      loginView.classList.add('hidden');
+      chatView.classList.remove('hidden');
+      setupPeer();
+      addMessage('system', '', `こんにちは ${myName} さん。接続IDの発行を待っています...`);
+    });
+
+    connectBtn.addEventListener('click', () => {
+      if (!peer || peer.disconnected) {
+        setStatus(connectStatus, 'Peerが初期化されていません。少し待ってから再試行してください。', true);
+        return;
+      }
+
+      const remoteId = peerIdInput.value.trim();
+      if (!remoteId) {
+        setStatus(connectStatus, '接続IDを入力してください。', true);
+        return;
+      }
+
+      if (remoteId === peer.id) {
+        setStatus(connectStatus, '自分自身には接続できません。', true);
+        return;
+      }
+
+      setStatus(connectStatus, `接続中: ${remoteId} ...`);
+      const newConn = peer.connect(remoteId, { reliable: true });
+      bindConnection(newConn, true);
+    });
+
+    const sendMessage = () => {
+      const text = messageInput.value.trim();
+      if (!text || !conn || !conn.open) return;
+
+      const payload = { type: 'chat', name: myName, text };
+      conn.send(payload);
+      addMessage('self', myName, text);
+      messageInput.value = '';
+      messageInput.focus();
+    };
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    usernameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loginBtn.click();
+    });
+  </script>
+</body>
+</html>

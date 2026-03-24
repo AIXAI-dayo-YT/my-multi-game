@@ -428,43 +428,81 @@
       });
     }
 
-    function loadScriptFromList(urls) {
-      return new Promise((resolve, reject) => {
-        const tryLoad = (idx) => {
-          if (idx >= urls.length) {
-            reject(new Error('全CDNで読み込みに失敗'));
-            return;
+    function delay(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function loadScriptFromList(libraryName, urls, retryCount = 2, retryDelayMs = 350) {
+      const allErrors = [];
+
+      for (const url of urls) {
+        for (let attempt = 1; attempt <= retryCount + 1; attempt++) {
+          try {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = url;
+              script.async = true;
+              script.onload = () => resolve();
+              script.onerror = (event) => {
+                script.remove();
+                reject(new Error(`${libraryName} load failed (attempt ${attempt})`));
+              };
+              document.head.appendChild(script);
+            });
+            console.info(`[library] ${libraryName} loaded from: ${url} (attempt ${attempt})`);
+            return url;
+          } catch (err) {
+            allErrors.push({ url, attempt, error: err });
+            console.error(`[library] ${libraryName} load error`, {
+              library: libraryName,
+              url,
+              attempt,
+              error: err,
+            });
+            if (attempt <= retryCount) {
+              await delay(retryDelayMs * attempt);
+            }
           }
-          const script = document.createElement('script');
-          script.src = urls[idx];
-          script.async = true;
-          script.onload = () => resolve(urls[idx]);
-          script.onerror = () => {
-            script.remove();
-            tryLoad(idx + 1);
-          };
-          document.head.appendChild(script);
-        };
-        tryLoad(0);
-      });
+        }
+      }
+
+      console.error(`[library] ${libraryName} failed on all CDNs`, allErrors);
+      throw new Error(`${libraryName} の読み込みに失敗しました（全CDN / 全リトライ失敗）`);
     }
 
     async function ensureLibrariesLoaded() {
-      await loadScriptFromList([
-        'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js',
-        'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js'
-      ]);
-      await loadScriptFromList([
-        'https://unpkg.com/three@0.161.0/build/three.min.js',
-        'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js'
-      ]);
-      await loadScriptFromList([
-        'https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js',
-        'https://unpkg.com/cannon@0.6.2/build/cannon.min.js'
-      ]);
-      await waitForLibraries();
-      state.libsReady = true;
-      setStatus(libStatus, 'ライブラリ読み込み完了');
+      const loadedSources = {};
+      try {
+        loadedSources.peerjs = await loadScriptFromList('PeerJS', [
+          'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js',
+          'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js'
+        ], 2, 400);
+
+        loadedSources.three = await loadScriptFromList('Three.js', [
+          'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/three.js/r161/three.min.js',
+          'https://unpkg.com/three@0.161.0/build/three.min.js'
+        ], 2, 400);
+
+        loadedSources.cannon = await loadScriptFromList('Cannon.js', [
+          'https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js',
+          'https://unpkg.com/cannon@0.6.2/build/cannon.min.js'
+        ], 2, 400);
+
+        await waitForLibraries();
+        state.libsReady = true;
+        setStatus(libStatus, 'ライブラリ読み込み完了');
+        console.info('[library] all libraries loaded', loadedSources);
+      } catch (err) {
+        const missing = [];
+        if (!window.Peer) missing.push('PeerJS');
+        if (!window.THREE) missing.push('Three.js');
+        if (!window.CANNON) missing.push('Cannon.js');
+        console.error('[library] initialization stopped. Missing libraries:', missing, err);
+        throw err;
+      }
     }
 
     function createSlimeMaterial() {
@@ -857,7 +895,7 @@
         joinRoomBtn.disabled = false;
         soloBtn.disabled = false;
       } catch (err) {
-        setStatus(libStatus, `ライブラリ読み込み失敗: ${err.message}`, true);
+        setStatus(libStatus, `ライブラリ読み込み失敗: ${err.message}（詳細はブラウザのコンソール（F12）を確認してください）`, true);
       }
     }
 

@@ -3,366 +3,708 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>P2P マルチプレイ・チャット</title>
+  <title>Slime Playground - Step 2</title>
   <style>
     :root {
-      --bg: #f5f7fb;
-      --panel: #ffffff;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --border: #dbe2ee;
-      --self: #ecf3ff;
-      --other: #f3f4f6;
-      --system: #eefbf3;
-      --danger: #b91c1c;
+      --bg: #0f172a;
+      --panel: rgba(15, 23, 42, 0.82);
+      --line: rgba(148, 163, 184, 0.3);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --good: #22c55e;
+      --warn: #f59e0b;
     }
 
     * { box-sizing: border-box; }
 
-    body {
+    html, body {
       margin: 0;
+      width: 100%;
+      height: 100%;
       font-family: "Inter", "Noto Sans JP", "Yu Gothic", sans-serif;
-      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      background: radial-gradient(circle at top, #1e293b 0%, #020617 80%);
       color: var(--text);
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 16px;
-    }
-
-    .app {
-      width: min(900px, 100%);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.08);
       overflow: hidden;
     }
 
     .hidden { display: none !important; }
 
-    .view { padding: 24px; }
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      z-index: 20;
+    }
 
-    h1, h2 { margin: 0 0 12px; }
-    p { margin: 0 0 16px; color: var(--muted); }
+    .card {
+      width: min(680px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+    }
+
+    h1, h2 { margin: 0 0 10px; }
+    p { margin: 0 0 12px; color: var(--muted); }
 
     .row {
       display: flex;
       gap: 10px;
-      flex-wrap: wrap;
       align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
     }
 
-    input, button {
+    input, button, select {
       font: inherit;
       border-radius: 10px;
-      border: 1px solid var(--border);
+      border: 1px solid var(--line);
       padding: 10px 12px;
-      outline: none;
     }
 
-    input {
-      flex: 1;
-      min-width: 200px;
-      background: #fff;
+    input, select {
+      background: rgba(15, 23, 42, 0.6);
       color: var(--text);
-    }
-
-    input:focus {
-      border-color: #93c5fd;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      flex: 1;
+      min-width: 180px;
     }
 
     button {
-      background: var(--primary);
-      color: #fff;
       border: none;
-      font-weight: 600;
+      font-weight: 700;
+      background: #0ea5e9;
+      color: #082f49;
       cursor: pointer;
-      transition: background .15s ease;
     }
 
-    button:hover { background: var(--primary-hover); }
-    button:disabled { opacity: .5; cursor: not-allowed; }
+    button:hover { filter: brightness(1.08); }
+
+    .sub-btn { background: #64748b; color: #f8fafc; }
 
     .status {
-      margin-top: 12px;
-      font-size: 0.95rem;
-      color: var(--muted);
       min-height: 1.4em;
-    }
-
-    .status.error { color: var(--danger); }
-
-    .topbar {
-      background: #f8faff;
-      border-bottom: 1px solid var(--border);
-      padding: 14px 18px;
-      display: grid;
-      gap: 10px;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: #e8f0ff;
-      color: #1e40af;
-      padding: 8px 10px;
-      border-radius: 999px;
-      font-size: .88rem;
-      max-width: fit-content;
-    }
-
-    .chat-layout {
-      display: grid;
-      grid-template-rows: 1fr auto;
-      min-height: 68vh;
-    }
-
-    .log {
-      padding: 16px;
-      overflow-y: auto;
-      background: #fcfdff;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .msg {
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      max-width: min(80ch, 100%);
-      line-height: 1.45;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .msg.self { background: var(--self); align-self: flex-end; }
-    .msg.other { background: var(--other); align-self: flex-start; }
-    .msg.system { background: var(--system); align-self: center; color: #166534; font-size: .93rem; }
-
-    .msg .name { font-weight: 700; margin-right: 6px; }
-
-    .compose {
-      border-top: 1px solid var(--border);
-      background: #fff;
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-    }
-
-    .help {
-      font-size: .85rem;
       color: var(--muted);
+      font-size: 0.95rem;
     }
 
-    @media (max-width: 640px) {
-      .view { padding: 18px; }
-      .topbar { padding: 12px; }
-      input { min-width: 120px; }
+    #gameRoot {
+      position: fixed;
+      inset: 0;
+      background: #87ceeb;
     }
+
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .panel {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      backdrop-filter: blur(4px);
+    }
+
+    #chatPanel {
+      top: 12px;
+      left: 12px;
+      width: min(420px, calc(100vw - 24px));
+      pointer-events: auto;
+    }
+
+    #chatLog {
+      max-height: 210px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .chat-line.system { color: #cbd5e1; }
+    .chat-line.me { color: #7dd3fc; }
+    .chat-line.other { color: #86efac; }
+
+    #chatInputRow { display: none; }
+    #chatInputRow.active { display: flex; gap: 8px; }
+
+    #chatInput {
+      background: rgba(2, 6, 23, 0.9);
+      border: 1px solid var(--line);
+      color: var(--text);
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    #topRight {
+      top: 12px;
+      right: 12px;
+      min-width: 250px;
+      font-size: 0.9rem;
+      color: #dbeafe;
+    }
+
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 10px;
+      height: 10px;
+      margin-left: -5px;
+      margin-top: -5px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+    }
+
+    .hint { color: #bae6fd; font-size: 0.85rem; }
   </style>
 </head>
 <body>
-  <main class="app">
-    <section id="loginView" class="view">
-      <h1>マルチプレイ・チャット（P2P）</h1>
-      <p>最初にユーザー名を入力してください。ログイン後に自分の接続IDが発行されます。</p>
+  <section id="loginScreen" class="screen">
+    <div class="card">
+      <h1>ステップ2: Slime Flat World</h1>
+      <p>ユーザー名でログインしてください。</p>
       <div class="row">
-        <input id="usernameInput" type="text" maxlength="24" placeholder="ユーザー名（例: Taro）" />
+        <input id="usernameInput" type="text" maxlength="24" placeholder="ユーザー名" />
         <button id="loginBtn">ログイン</button>
       </div>
       <div id="loginStatus" class="status"></div>
-    </section>
+    </div>
+  </section>
 
-    <section id="chatView" class="hidden">
-      <header class="topbar">
-        <div class="row">
-          <strong>ユーザー:</strong><span id="myName">-</span>
-          <span class="badge">あなたの接続ID: <strong id="myPeerId">-</strong></span>
-        </div>
-        <div class="row">
-          <input id="peerIdInput" type="text" placeholder="相手の接続IDを入力" />
-          <button id="connectBtn">接続</button>
-        </div>
-        <div id="connectStatus" class="status"></div>
-      </header>
-
-      <div class="chat-layout">
-        <div id="chatLog" class="log"></div>
-
-        <footer class="compose">
-          <div class="row">
-            <input id="messageInput" type="text" placeholder="メッセージを入力" />
-            <button id="sendBtn" disabled>送信</button>
-          </div>
-          <div class="help">接続後に送信できます。相手の画面には「ユーザー名: メッセージ」が表示されます。</div>
-        </footer>
+  <section id="menuScreen" class="screen hidden">
+    <div class="card">
+      <h2>モード選択</h2>
+      <p>フラット（平原）モードのみ選択できます。</p>
+      <div class="row">
+        <select id="modeSelect" disabled>
+          <option value="flat" selected>フラット（平原）</option>
+        </select>
       </div>
-    </section>
-  </main>
+      <div class="row">
+        <button id="quickPlayBtn">クイックプレイ（自動接続）</button>
+        <button id="soloBtn" class="sub-btn">シングルで開始</button>
+      </div>
+      <div class="row">
+        <input id="roomInput" type="text" placeholder="部屋番号（例: 1234）" />
+        <button id="joinRoomBtn">部屋番号で入室</button>
+      </div>
+      <p class="hint">接続できなくてもゲーム開始できます。誰かが入室すると自動で同期します。</p>
+      <div id="menuStatus" class="status"></div>
+    </div>
+  </section>
+
+  <div id="gameRoot" class="hidden"></div>
+
+  <div id="hud" class="hidden">
+    <div id="chatPanel" class="panel">
+      <div id="chatLog"></div>
+      <div id="chatInputRow">
+        <input id="chatInput" type="text" maxlength="220" placeholder="メッセージを入力してEnterで送信" />
+      </div>
+      <div class="hint">T または Enter でチャット入力</div>
+    </div>
+
+    <div id="topRight" class="panel">
+      <div><strong id="nameLabel"></strong></div>
+      <div>接続ID: <span id="peerIdLabel">-</span></div>
+      <div>接続数: <span id="peersCount">0</span></div>
+      <div id="netState">オフライン（シングル）</div>
+      <div class="hint">移動: WASD / 矢印・ジャンプ: Space</div>
+    </div>
+
+    <div id="crosshair"></div>
+  </div>
 
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
   <script>
-    const loginView = document.getElementById('loginView');
-    const chatView = document.getElementById('chatView');
-    const loginStatus = document.getElementById('loginStatus');
-    const connectStatus = document.getElementById('connectStatus');
+    // ---------- DOM ----------
+    const loginScreen = document.getElementById('loginScreen');
+    const menuScreen = document.getElementById('menuScreen');
+    const gameRoot = document.getElementById('gameRoot');
+    const hud = document.getElementById('hud');
+
     const usernameInput = document.getElementById('usernameInput');
-    const myNameEl = document.getElementById('myName');
-    const myPeerIdEl = document.getElementById('myPeerId');
-    const peerIdInput = document.getElementById('peerIdInput');
-    const chatLog = document.getElementById('chatLog');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-
     const loginBtn = document.getElementById('loginBtn');
-    const connectBtn = document.getElementById('connectBtn');
+    const loginStatus = document.getElementById('loginStatus');
 
-    let myName = '';
-    let peer = null;
-    let conn = null;
+    const quickPlayBtn = document.getElementById('quickPlayBtn');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const soloBtn = document.getElementById('soloBtn');
+    const roomInput = document.getElementById('roomInput');
+    const menuStatus = document.getElementById('menuStatus');
 
-    const setStatus = (el, text, isError = false) => {
+    const chatLog = document.getElementById('chatLog');
+    const chatInput = document.getElementById('chatInput');
+    const chatInputRow = document.getElementById('chatInputRow');
+    const nameLabel = document.getElementById('nameLabel');
+    const peerIdLabel = document.getElementById('peerIdLabel');
+    const peersCount = document.getElementById('peersCount');
+    const netState = document.getElementById('netState');
+
+    // ---------- state ----------
+    const state = {
+      username: '',
+      sceneReady: false,
+      networkMode: 'solo',
+      room: '',
+      peer: null,
+      peerId: '',
+      connections: new Map(),
+      remotePlayers: new Map(),
+      isChatTyping: false,
+      keys: {},
+      canJump: false,
+      localScale: new THREE.Vector3(1, 1, 1),
+      squash: 0,
+      lastSyncAt: 0,
+    };
+
+    // ---------- helpers ----------
+    function setStatus(el, text, warn = false) {
       el.textContent = text;
-      el.classList.toggle('error', isError);
-    };
+      el.style.color = warn ? 'var(--warn)' : 'var(--muted)';
+    }
 
-    const addMessage = (type, name, text) => {
-      const item = document.createElement('div');
-      item.className = `msg ${type}`;
-
-      if (type === 'system') {
-        item.textContent = text;
-      } else {
-        item.innerHTML = `<span class="name"></span><span class="body"></span>`;
-        item.querySelector('.name').textContent = `${name}:`;
-        item.querySelector('.body').textContent = ` ${text}`;
-      }
-
-      chatLog.appendChild(item);
+    function addChatLine(kind, text) {
+      const div = document.createElement('div');
+      div.className = `chat-line ${kind}`;
+      div.textContent = text;
+      chatLog.appendChild(div);
       chatLog.scrollTop = chatLog.scrollHeight;
-    };
-
-    const bindConnection = (newConn, outgoing = false) => {
-      if (conn && conn.open) {
-        conn.close();
+      if (chatLog.childElementCount > 120) {
+        chatLog.removeChild(chatLog.firstChild);
       }
-      conn = newConn;
+    }
+
+    function roomHostId(room) {
+      return `flat-room-${room}`.replace(/[^a-zA-Z0-9\-]/g, '').slice(0, 45) || 'flat-room-default';
+    }
+
+    function updateNetworkUI() {
+      peerIdLabel.textContent = state.peerId || '-';
+      peersCount.textContent = String(state.connections.size);
+      const modeLabel = state.networkMode === 'solo' ? 'オフライン（シングル）' : `オンライン (${state.room})`;
+      netState.textContent = modeLabel;
+    }
+
+    // ---------- PeerJS ----------
+    function attachConnection(conn) {
+      state.connections.set(conn.peer, conn);
+      updateNetworkUI();
 
       conn.on('open', () => {
-        setStatus(connectStatus, `接続中: ${conn.peer}`);
-        sendBtn.disabled = false;
-        addMessage('system', '', `「${conn.peer}」と接続しました。`);
-        if (outgoing) {
-          conn.send({ type: 'system', text: `${myName} が接続しました。` });
-        }
+        addChatLine('system', `接続: ${conn.peer}`);
+        conn.send({
+          type: 'hello',
+          name: state.username,
+          id: state.peerId,
+        });
       });
 
-      conn.on('data', (data) => {
-        if (!data || typeof data !== 'object') return;
+      conn.on('data', (msg) => {
+        if (!msg || typeof msg !== 'object') return;
 
-        if (data.type === 'chat') {
-          addMessage('other', data.name || '相手', data.text || '');
-        } else if (data.type === 'system') {
-          addMessage('system', '', data.text || 'システムメッセージ');
+        if (msg.type === 'hello') {
+          addChatLine('system', `${msg.name || 'Player'} が参加しました`);
+        }
+
+        if (msg.type === 'chat') {
+          addChatLine('other', `${msg.name || 'Player'}: ${msg.text || ''}`);
+        }
+
+        if (msg.type === 'state') {
+          applyRemoteState(conn.peer, msg);
         }
       });
 
       conn.on('close', () => {
-        sendBtn.disabled = true;
-        setStatus(connectStatus, '接続が切断されました。');
-        addMessage('system', '', '接続が切断されました。');
+        state.connections.delete(conn.peer);
+        removeRemote(conn.peer);
+        updateNetworkUI();
+        addChatLine('system', `切断: ${conn.peer}`);
       });
 
-      conn.on('error', (err) => {
-        setStatus(connectStatus, `接続エラー: ${err.message || err}`, true);
+      conn.on('error', (e) => {
+        addChatLine('system', `接続エラー: ${e.message || e}`);
       });
-    };
+    }
 
-    const setupPeer = () => {
-      peer = new Peer();
+    function createPeer(desiredId) {
+      return new Promise((resolve, reject) => {
+        const peer = desiredId ? new Peer(desiredId) : new Peer();
+        let opened = false;
 
-      peer.on('open', (id) => {
-        myPeerIdEl.textContent = id;
-        setStatus(connectStatus, '相手の接続IDを入力して接続してください。');
+        peer.on('open', (id) => {
+          opened = true;
+          resolve({ peer, id });
+        });
+
+        peer.on('connection', (conn) => {
+          attachConnection(conn);
+        });
+
+        peer.on('error', (err) => {
+          if (!opened) {
+            reject(err);
+          } else {
+            addChatLine('system', `Peerエラー: ${err.type || err.message || err}`);
+          }
+        });
       });
+    }
 
-      peer.on('connection', (incomingConn) => {
-        setStatus(connectStatus, `着信接続: ${incomingConn.peer}`);
-        bindConnection(incomingConn, false);
-      });
+    async function setupNetworking(mode, room) {
+      state.networkMode = mode;
+      state.room = room || '';
 
-      peer.on('error', (err) => {
-        setStatus(connectStatus, `Peer エラー: ${err.type || err.message || err}`, true);
-      });
+      if (mode === 'solo') {
+        updateNetworkUI();
+        return;
+      }
 
-      peer.on('disconnected', () => {
-        setStatus(connectStatus, 'Peerサーバーから切断されました。再接続します...');
-        peer.reconnect();
+      const hostId = roomHostId(room);
+
+      try {
+        const host = await createPeer(hostId);
+        state.peer = host.peer;
+        state.peerId = host.id;
+        addChatLine('system', `あなたはホストです。部屋: ${room}`);
+      } catch (err) {
+        if (err.type === 'unavailable-id') {
+          const client = await createPeer();
+          state.peer = client.peer;
+          state.peerId = client.id;
+          const conn = state.peer.connect(hostId, { reliable: true });
+          attachConnection(conn);
+          addChatLine('system', `部屋 ${room} に接続を試行中...`);
+        } else {
+          addChatLine('system', `ネットワーク初期化失敗: ${err.type || err.message || err}`);
+          addChatLine('system', 'シングルプレイで開始します。');
+          state.networkMode = 'solo';
+        }
+      }
+
+      updateNetworkUI();
+    }
+
+    function broadcast(payload) {
+      for (const [, conn] of state.connections) {
+        if (conn.open) conn.send(payload);
+      }
+    }
+
+    // ---------- 3D / Physics ----------
+    let scene, camera, renderer, world;
+    let slimeMesh, slimeBody;
+    let floorMesh;
+    const remoteGroup = new THREE.Group();
+
+    function createSlimeMaterial() {
+      return new THREE.MeshStandardMaterial({
+        color: 0x5eead4,
+        metalness: 0.45,
+        roughness: 0.18,
+        transparent: true,
+        opacity: 0.72,
+        envMapIntensity: 1.0,
       });
-    };
+    }
+
+    function initScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87ceeb);
+      scene.fog = new THREE.Fog(0x9bd7ff, 90, 320);
+
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 6, 10);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      gameRoot.appendChild(renderer.domElement);
+
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x88aaff, 0.95);
+      scene.add(hemi);
+
+      const dir = new THREE.DirectionalLight(0xffffff, 1.05);
+      dir.position.set(6, 14, 4);
+      scene.add(dir);
+
+      const groundGeo = new THREE.PlaneGeometry(1200, 1200, 1, 1);
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0x6ee7b7, roughness: 0.95, metalness: 0.02 });
+      floorMesh = new THREE.Mesh(groundGeo, groundMat);
+      floorMesh.rotation.x = -Math.PI / 2;
+      floorMesh.position.y = 0;
+      scene.add(floorMesh);
+
+      slimeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), createSlimeMaterial());
+      slimeMesh.position.set(0, 2, 0);
+      scene.add(slimeMesh);
+
+      scene.add(remoteGroup);
+
+      world = new CANNON.World();
+      world.gravity.set(0, -24, 0);
+      world.broadphase = new CANNON.NaiveBroadphase();
+      world.solver.iterations = 10;
+
+      const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
+      groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+      world.addBody(groundBody);
+
+      slimeBody = new CANNON.Body({
+        mass: 1.2,
+        shape: new CANNON.Sphere(1),
+        position: new CANNON.Vec3(0, 3.5, 0),
+        material: new CANNON.Material('slime')
+      });
+      slimeBody.linearDamping = 0.25;
+      world.addBody(slimeBody);
+
+      window.addEventListener('resize', onResize);
+      state.sceneReady = true;
+      requestAnimationFrame(loop);
+    }
+
+    function onResize() {
+      if (!renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function controlStep(dt) {
+      if (state.isChatTyping) return;
+
+      const speed = 14;
+      const force = new CANNON.Vec3(0, 0, 0);
+      const forward = (state.keys['KeyW'] || state.keys['ArrowUp'] ? 1 : 0) - (state.keys['KeyS'] || state.keys['ArrowDown'] ? 1 : 0);
+      const strafe = (state.keys['KeyD'] || state.keys['ArrowRight'] ? 1 : 0) - (state.keys['KeyA'] || state.keys['ArrowLeft'] ? 1 : 0);
+
+      force.x = strafe * speed;
+      force.z = -forward * speed;
+      slimeBody.applyForce(force, slimeBody.position);
+
+      const nearGround = slimeBody.position.y <= 1.05;
+      if (nearGround) state.canJump = true;
+
+      if (state.keys['Space'] && state.canJump) {
+        slimeBody.velocity.y = 9.8;
+        state.canJump = false;
+        state.squash = Math.max(state.squash, 0.22);
+      }
+
+      const horizontalSpeed = Math.hypot(slimeBody.velocity.x, slimeBody.velocity.z);
+      const wobble = Math.min(0.22, horizontalSpeed * 0.014) + state.squash;
+      const pulse = 0.04 * Math.sin(performance.now() * 0.02);
+
+      const targetY = 1 + wobble * 0.7 + pulse;
+      const targetXZ = 1 - wobble * 0.4;
+      state.localScale.x += (targetXZ - state.localScale.x) * Math.min(1, dt * 12);
+      state.localScale.y += (targetY - state.localScale.y) * Math.min(1, dt * 12);
+      state.localScale.z += (targetXZ - state.localScale.z) * Math.min(1, dt * 12);
+      slimeMesh.scale.copy(state.localScale);
+
+      state.squash *= Math.max(0, 1 - dt * 6.5);
+
+      if (nearGround && Math.abs(slimeBody.velocity.y) < 0.6) {
+        state.squash = Math.max(state.squash, 0.08);
+      }
+    }
+
+    function updateCamera() {
+      const p = slimeMesh.position;
+      const desired = new THREE.Vector3(p.x + 0.1, p.y + 4.6, p.z + 8.4);
+      camera.position.lerp(desired, 0.07);
+      camera.lookAt(p.x, p.y + 0.7, p.z);
+    }
+
+    function applyRemoteState(peerId, data) {
+      if (!state.sceneReady) return;
+      let remote = state.remotePlayers.get(peerId);
+      if (!remote) {
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 24), new THREE.MeshStandardMaterial({
+          color: 0x60a5fa,
+          metalness: 0.38,
+          roughness: 0.24,
+          transparent: true,
+          opacity: 0.67,
+        }));
+        remoteGroup.add(mesh);
+        remote = { mesh, name: data.name || 'Player' };
+        state.remotePlayers.set(peerId, remote);
+      }
+
+      remote.mesh.position.set(data.x || 0, data.y || 2, data.z || 0);
+      remote.mesh.scale.set(data.sx || 1, data.sy || 1, data.sz || 1);
+    }
+
+    function removeRemote(peerId) {
+      const remote = state.remotePlayers.get(peerId);
+      if (!remote) return;
+      remoteGroup.remove(remote.mesh);
+      remote.mesh.geometry.dispose();
+      remote.mesh.material.dispose();
+      state.remotePlayers.delete(peerId);
+    }
+
+    function syncState() {
+      if (state.networkMode === 'solo') return;
+      const now = performance.now();
+      if (now - state.lastSyncAt < 90) return;
+      state.lastSyncAt = now;
+
+      broadcast({
+        type: 'state',
+        name: state.username,
+        x: slimeMesh.position.x,
+        y: slimeMesh.position.y,
+        z: slimeMesh.position.z,
+        sx: slimeMesh.scale.x,
+        sy: slimeMesh.scale.y,
+        sz: slimeMesh.scale.z,
+      });
+    }
+
+    let prevTime = performance.now();
+    function loop(now) {
+      if (!state.sceneReady) return;
+      const dt = Math.min(0.05, (now - prevTime) / 1000);
+      prevTime = now;
+
+      controlStep(dt);
+      world.step(1 / 60, dt, 3);
+
+      slimeMesh.position.set(slimeBody.position.x, slimeBody.position.y, slimeBody.position.z);
+      updateCamera();
+      syncState();
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+
+    // ---------- chat ----------
+    function toggleChatInput(show) {
+      state.isChatTyping = show;
+      chatInputRow.classList.toggle('active', show);
+      if (show) {
+        chatInput.value = '';
+        chatInput.focus();
+      } else {
+        chatInput.blur();
+      }
+    }
+
+    function sendChatMessage(text) {
+      const message = text.trim();
+      if (!message) return;
+      addChatLine('me', `${state.username}: ${message}`);
+      broadcast({ type: 'chat', name: state.username, text: message });
+    }
+
+    // ---------- flow ----------
+    async function startGame(networkMode, room) {
+      loginScreen.classList.add('hidden');
+      menuScreen.classList.add('hidden');
+      gameRoot.classList.remove('hidden');
+      hud.classList.remove('hidden');
+      nameLabel.textContent = `Player: ${state.username}`;
+
+      if (!state.sceneReady) {
+        initScene();
+      }
+
+      addChatLine('system', `${state.username} がゲームに参加しました`);
+      await setupNetworking(networkMode, room);
+      updateNetworkUI();
+    }
 
     loginBtn.addEventListener('click', () => {
-      const inputName = usernameInput.value.trim();
-      if (!inputName) {
-        setStatus(loginStatus, 'ユーザー名を入力してください。', true);
+      const name = usernameInput.value.trim();
+      if (!name) {
+        setStatus(loginStatus, 'ユーザー名を入力してください', true);
         return;
       }
-
-      myName = inputName;
-      myNameEl.textContent = myName;
-
-      loginView.classList.add('hidden');
-      chatView.classList.remove('hidden');
-      setupPeer();
-      addMessage('system', '', `こんにちは ${myName} さん。接続IDの発行を待っています...`);
+      state.username = name;
+      setStatus(loginStatus, '');
+      loginScreen.classList.add('hidden');
+      menuScreen.classList.remove('hidden');
+      setStatus(menuStatus, 'モードを選んで開始してください');
     });
 
-    connectBtn.addEventListener('click', () => {
-      if (!peer || peer.disconnected) {
-        setStatus(connectStatus, 'Peerが初期化されていません。少し待ってから再試行してください。', true);
-        return;
-      }
-
-      const remoteId = peerIdInput.value.trim();
-      if (!remoteId) {
-        setStatus(connectStatus, '接続IDを入力してください。', true);
-        return;
-      }
-
-      if (remoteId === peer.id) {
-        setStatus(connectStatus, '自分自身には接続できません。', true);
-        return;
-      }
-
-      setStatus(connectStatus, `接続中: ${remoteId} ...`);
-      const newConn = peer.connect(remoteId, { reliable: true });
-      bindConnection(newConn, true);
+    quickPlayBtn.addEventListener('click', async () => {
+      setStatus(menuStatus, 'クイックプレイを開始します...');
+      await startGame('online', 'quick-flat');
     });
 
-    const sendMessage = () => {
-      const text = messageInput.value.trim();
-      if (!text || !conn || !conn.open) return;
+    joinRoomBtn.addEventListener('click', async () => {
+      const room = roomInput.value.trim();
+      if (!room) {
+        setStatus(menuStatus, '部屋番号を入力してください', true);
+        return;
+      }
+      setStatus(menuStatus, `部屋 ${room} へ入室します...`);
+      await startGame('online', room);
+    });
 
-      const payload = { type: 'chat', name: myName, text };
-      conn.send(payload);
-      addMessage('self', myName, text);
-      messageInput.value = '';
-      messageInput.focus();
-    };
+    soloBtn.addEventListener('click', async () => {
+      setStatus(menuStatus, 'シングルプレイで開始します');
+      await startGame('solo', 'solo');
+    });
 
-    sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendMessage();
+    document.addEventListener('keydown', (e) => {
+      if (!state.sceneReady) return;
+
+      if ((e.code === 'KeyT' || e.code === 'Enter') && !state.isChatTyping) {
+        e.preventDefault();
+        toggleChatInput(true);
+        return;
+      }
+
+      if (state.isChatTyping && e.code === 'Enter') {
+        e.preventDefault();
+        sendChatMessage(chatInput.value);
+        toggleChatInput(false);
+        return;
+      }
+
+      if (state.isChatTyping && e.code === 'Escape') {
+        e.preventDefault();
+        toggleChatInput(false);
+        return;
+      }
+
+      state.keys[e.code] = true;
+    });
+
+    document.addEventListener('keyup', (e) => {
+      state.keys[e.code] = false;
+    });
+
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter') {
+        e.preventDefault();
+        sendChatMessage(chatInput.value);
+        toggleChatInput(false);
+      }
     });
 
     usernameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') loginBtn.click();
+      if (e.code === 'Enter') loginBtn.click();
     });
   </script>
 </body>

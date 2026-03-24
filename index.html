@@ -3,151 +3,89 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Slime Playground - Step 2</title>
+  <title>Slime Playground - Step 3</title>
   <style>
     :root {
-      --panel: rgba(15, 23, 42, 0.82);
-      --line: rgba(148, 163, 184, 0.3);
+      --panel: rgba(10, 14, 28, 0.82);
+      --line: rgba(148, 163, 184, 0.35);
       --text: #e2e8f0;
       --muted: #94a3b8;
       --warn: #f59e0b;
-      --ok: #22c55e;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       width: 100%;
       height: 100%;
-      font-family: "Inter", "Noto Sans JP", "Yu Gothic", sans-serif;
+      overflow: hidden;
+      font-family: "Inter", "Noto Sans JP", sans-serif;
       background: radial-gradient(circle at top, #1e293b 0%, #020617 80%);
       color: var(--text);
-      overflow: hidden;
     }
     .hidden { display: none !important; }
     .screen {
-      position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      padding: 18px;
-      z-index: 20;
+      position: fixed; inset: 0; z-index: 20;
+      display: grid; place-items: center; padding: 18px;
     }
     .card {
-      width: min(760px, 100%);
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 20px;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+      width: min(760px, 100%); padding: 20px;
+      border-radius: 16px; border: 1px solid var(--line);
+      background: var(--panel); backdrop-filter: blur(7px);
+      box-shadow: 0 14px 34px rgba(0,0,0,0.35);
     }
-    h1, h2 { margin: 0 0 10px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    h1,h2 { margin: 0 0 10px; }
     p { margin: 0 0 12px; color: var(--muted); }
-    .row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
+    input,button,select {
+      border-radius: 10px; border: 1px solid var(--line);
+      padding: 10px 12px; font: inherit;
     }
-    input, button, select {
-      font: inherit;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      padding: 10px 12px;
-    }
-    input, select {
-      background: rgba(15, 23, 42, 0.6);
-      color: var(--text);
-      flex: 1;
-      min-width: 180px;
-    }
-    button {
-      border: none;
-      font-weight: 700;
-      background: #0ea5e9;
-      color: #082f49;
-      cursor: pointer;
-    }
+    input,select { flex: 1; min-width: 180px; background: rgba(15,23,42,.65); color: var(--text); }
+    button { border: none; background: #0ea5e9; color: #06263a; font-weight: 700; cursor: pointer; }
     button:hover { filter: brightness(1.08); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
     .sub-btn { background: #64748b; color: #f8fafc; }
-    .status {
-      min-height: 1.4em;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-    #gameRoot {
-      position: fixed;
-      inset: 0;
-      background: #87ceeb;
-    }
-    #hud {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 10;
-    }
+    .status { min-height: 1.4em; color: var(--muted); font-size: .95rem; }
+
+    #gameRoot { position: fixed; inset: 0; background: #87ceeb; }
+    #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
     .panel {
-      position: absolute;
-      background: rgba(2, 6, 23, 0.72);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 10px;
+      position: absolute; border-radius: 10px; padding: 10px;
+      border: 1px solid var(--line); background: rgba(2,6,23,.78);
       backdrop-filter: blur(4px);
     }
     #chatPanel {
-      top: 12px;
-      left: 12px;
-      width: min(460px, calc(100vw - 24px));
-      pointer-events: auto;
-      background: rgba(2, 6, 23, 0.82);
+      top: 12px; left: 12px; width: min(470px, calc(100vw - 24px));
+      background: rgba(2,6,23,.86); pointer-events: auto;
     }
-    #chatLog {
-      max-height: 210px;
-      overflow-y: auto;
-      font-size: 0.9rem;
-      line-height: 1.4;
-      margin-bottom: 8px;
-      display: grid;
-      gap: 4px;
-    }
+    #chatLog { max-height: 220px; overflow-y: auto; font-size: .9rem; line-height: 1.45; margin-bottom: 8px; display: grid; gap: 4px; }
     .chat-line.system { color: #cbd5e1; }
     .chat-line.me { color: #7dd3fc; }
     .chat-line.other { color: #86efac; }
     #chatInputRow { display: none; }
     #chatInputRow.active { display: flex; gap: 8px; }
-    #chatInput {
-      background: rgba(2, 6, 23, 0.94);
-      border: 1px solid var(--line);
-      color: var(--text);
-      flex: 1;
-      padding: 8px;
-      border-radius: 8px;
+    #chatInput { flex: 1; color: var(--text); background: rgba(2,6,23,.96); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+
+    #topRight { top: 12px; right: 12px; min-width: 280px; color: #dbeafe; font-size: .9rem; }
+    #exitBtn {
+      pointer-events: auto;
+      position: absolute; right: 12px; bottom: 12px;
+      background: #ef4444; color: #fff; border: 0; border-radius: 10px;
+      padding: 10px 14px; font-weight: 700; cursor: pointer;
     }
-    #topRight {
-      top: 12px;
-      right: 12px;
-      min-width: 260px;
-      font-size: 0.9rem;
-      color: #dbeafe;
-    }
+    #exitBtn:hover { filter: brightness(1.07); }
     #crosshair {
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 10px; height: 10px;
-      margin-left: -5px; margin-top: -5px;
-      border: 1px solid rgba(255, 255, 255, 0.75);
-      border-radius: 50%;
+      position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
+      margin-left: -5px; margin-top: -5px; border: 1px solid rgba(255,255,255,.8); border-radius: 50%;
     }
-    .hint { color: #bae6fd; font-size: 0.85rem; }
+    .hint { color: #bae6fd; font-size: .85rem; }
   </style>
 </head>
 <body>
   <section id="loginScreen" class="screen">
     <div class="card">
-      <h1>ステップ2: Slime Flat World</h1>
-      <p>アカウントでログインしてください（同じユーザー名は登録不可）。</p>
+      <h1>ステップ3: 究極スライム体験</h1>
+      <p>アカウントでログインしてください（同名登録不可）。</p>
       <div class="row">
         <input id="usernameInput" type="text" maxlength="24" placeholder="ユーザー名" autocomplete="username" />
         <input id="passwordInput" type="password" maxlength="64" placeholder="パスワード" autocomplete="current-password" />
@@ -157,7 +95,7 @@
         <button id="registerBtn" class="sub-btn">新規登録</button>
       </div>
       <div id="libStatus" class="status">ライブラリを読み込み中...</div>
-      <p class="hint">※ データはこのブラウザの LocalStorage に保存され、アップデート後も同じアカウントでログインできます。</p>
+      <p class="hint">※ LocalStorage保存: アップデート後も同じアカウントでログインできます。</p>
       <div id="loginStatus" class="status"></div>
     </div>
   </section>
@@ -167,9 +105,7 @@
       <h2>モード選択</h2>
       <p>フラット（平原）モードのみ選択できます。</p>
       <div class="row">
-        <select id="modeSelect" disabled>
-          <option value="flat" selected>フラット（平原）</option>
-        </select>
+        <select disabled><option>フラット（平原）</option></select>
       </div>
       <div class="row">
         <button id="quickPlayBtn">クイックプレイ（自動接続）</button>
@@ -184,22 +120,20 @@
   </section>
 
   <div id="gameRoot" class="hidden"></div>
-
   <div id="hud" class="hidden">
     <div id="chatPanel" class="panel">
       <div id="chatLog"></div>
-      <div id="chatInputRow"><input id="chatInput" type="text" maxlength="220" placeholder="メッセージを入力してEnterで送信" /></div>
+      <div id="chatInputRow"><input id="chatInput" type="text" maxlength="220" placeholder="Enter送信 / Esc閉じる" /></div>
       <div class="hint">T または Enter でチャット入力</div>
     </div>
-
     <div id="topRight" class="panel">
       <div><strong id="nameLabel"></strong></div>
       <div>接続ID: <span id="peerIdLabel">-</span></div>
       <div>接続数: <span id="peersCount">0</span></div>
       <div id="netState">オフライン（シングル）</div>
-      <div class="hint">移動: WASD / 矢印・ジャンプ: Space</div>
+      <div class="hint">移動: WASD/矢印 ・ ジャンプ: Space ・ 視点: マウス</div>
     </div>
-
+    <button id="exitBtn">タイトルへ戻る（退出）</button>
     <div id="crosshair"></div>
   </div>
 
@@ -211,20 +145,17 @@
     const menuScreen = document.getElementById('menuScreen');
     const gameRoot = document.getElementById('gameRoot');
     const hud = document.getElementById('hud');
-
     const usernameInput = document.getElementById('usernameInput');
     const passwordInput = document.getElementById('passwordInput');
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const loginStatus = document.getElementById('loginStatus');
     const libStatus = document.getElementById('libStatus');
-
     const quickPlayBtn = document.getElementById('quickPlayBtn');
     const joinRoomBtn = document.getElementById('joinRoomBtn');
     const soloBtn = document.getElementById('soloBtn');
     const roomInput = document.getElementById('roomInput');
     const menuStatus = document.getElementById('menuStatus');
-
     const chatLog = document.getElementById('chatLog');
     const chatInput = document.getElementById('chatInput');
     const chatInputRow = document.getElementById('chatInputRow');
@@ -232,6 +163,7 @@
     const peerIdLabel = document.getElementById('peerIdLabel');
     const peersCount = document.getElementById('peersCount');
     const netState = document.getElementById('netState');
+    const exitBtn = document.getElementById('exitBtn');
 
     const state = {
       libsReady: false,
@@ -244,13 +176,17 @@
       connections: new Map(),
       remotePlayers: new Map(),
       isChatTyping: false,
+      pointerLocked: false,
       keys: {},
       canJump: false,
       localScale: { x: 1, y: 1, z: 1 },
       squash: 0,
       jitter: 0,
       lastSyncAt: 0,
+      cameraYaw: 0,
+      cameraPitch: -0.25,
     };
+
     let THREE_LIB = null;
     let CANNON_LIB = null;
     let PeerCtor = null;
@@ -278,50 +214,34 @@
       }
     }
 
-    function saveAccounts(accounts) {
-      localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts));
-    }
-
+    function saveAccounts(accounts) { localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts)); }
     async function sha256(text) {
       const bytes = new TextEncoder().encode(text);
       const hash = await crypto.subtle.digest('SHA-256', bytes);
       return [...new Uint8Array(hash)].map(v => v.toString(16).padStart(2, '0')).join('');
     }
-
-    function normalizeUsername(name) {
-      return name.trim().toLowerCase();
-    }
+    const normalizeUsername = (name) => name.trim().toLowerCase();
 
     async function registerAccount(username, password) {
       const key = normalizeUsername(username);
       const accounts = loadAccounts();
       if (accounts[key]) throw new Error('そのユーザー名は既に使われています');
-
       const salt = crypto.randomUUID();
-      const passHash = await sha256(`${salt}:${password}`);
-      accounts[key] = { username, salt, passHash, createdAt: new Date().toISOString() };
+      accounts[key] = { username, salt, passHash: await sha256(`${salt}:${password}`), createdAt: new Date().toISOString() };
       saveAccounts(accounts);
       localStorage.setItem(LAST_USER_KEY, username);
       return username;
     }
 
     async function loginAccount(username, password) {
-      const key = normalizeUsername(username);
-      const accounts = loadAccounts();
-      const account = accounts[key];
+      const account = loadAccounts()[normalizeUsername(username)];
       if (!account) throw new Error('アカウントが存在しません。新規登録してください');
-
-      const passHash = await sha256(`${account.salt}:${password}`);
-      if (passHash !== account.passHash) throw new Error('パスワードが違います');
-
+      if (await sha256(`${account.salt}:${password}`) !== account.passHash) throw new Error('パスワードが違います');
       localStorage.setItem(LAST_USER_KEY, account.username);
       return account.username;
     }
 
-    function roomHostId(room) {
-      return `flat-room-${room}`.replace(/[^a-zA-Z0-9\-]/g, '').slice(0, 45) || 'flat-room-default';
-    }
-
+    const roomHostId = (room) => `flat-room-${room}`.replace(/[^a-zA-Z0-9\-]/g, '').slice(0, 45) || 'flat-room-default';
     function updateNetworkUI() {
       peerIdLabel.textContent = state.peerId || '-';
       peersCount.textContent = String(state.connections.size);
@@ -348,39 +268,23 @@
         state.connections.delete(conn.peer);
         removeRemote(conn.peer);
         updateNetworkUI();
-        addChatLine('system', `切断: ${conn.peer}`);
       });
-
-      conn.on('error', (e) => addChatLine('system', `接続エラー: ${e.message || e}`));
     }
 
     function createPeer(desiredId) {
       return new Promise((resolve, reject) => {
         const peer = desiredId ? new PeerCtor(desiredId) : new PeerCtor();
         let opened = false;
-
-        peer.on('open', (id) => {
-          opened = true;
-          resolve({ peer, id });
-        });
-
+        peer.on('open', (id) => { opened = true; resolve({ peer, id }); });
         peer.on('connection', (conn) => attachConnection(conn));
-
-        peer.on('error', (err) => {
-          if (!opened) reject(err);
-          else addChatLine('system', `Peerエラー: ${err.type || err.message || err}`);
-        });
+        peer.on('error', (err) => { if (!opened) reject(err); else console.error(err); });
       });
     }
 
     async function setupNetworking(mode, room) {
       state.networkMode = mode;
       state.room = room || '';
-
-      if (mode === 'solo') {
-        updateNetworkUI();
-        return;
-      }
+      if (mode === 'solo') return updateNetworkUI();
 
       const hostId = roomHostId(room);
       try {
@@ -396,130 +300,186 @@
           attachConnection(state.peer.connect(hostId, { reliable: true }));
           addChatLine('system', `部屋 ${room} に接続を試行中...`);
         } else {
-          addChatLine('system', `ネットワーク初期化失敗: ${err.type || err.message || err}`);
-          addChatLine('system', 'シングルプレイで開始します。');
+          addChatLine('system', `ネットワーク初期化失敗: ${err.message || err}`);
           state.networkMode = 'solo';
         }
       }
       updateNetworkUI();
     }
 
-    function broadcast(payload) {
-      for (const [, conn] of state.connections) {
-        if (conn.open) conn.send(payload);
-      }
-    }
+    const broadcast = (payload) => {
+      for (const [, conn] of state.connections) if (conn.open) conn.send(payload);
+    };
 
-    let scene, camera, renderer, world;
-    let slimeMesh, slimeShellMesh, slimeBody;
-    let remoteGroup;
-
+    function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
     function waitForLibraries(timeoutMs = 15000) {
       return new Promise((resolve, reject) => {
         const start = performance.now();
         const timer = setInterval(() => {
           if (THREE_LIB && CANNON_LIB && PeerCtor) {
-            clearInterval(timer);
-            resolve();
-            return;
-          }
-          if (performance.now() - start > timeoutMs) {
-            clearInterval(timer);
-            reject(new Error('ライブラリ読み込みタイムアウト'));
+            clearInterval(timer); resolve();
+          } else if (performance.now() - start > timeoutMs) {
+            clearInterval(timer); reject(new Error('ライブラリ読み込みタイムアウト'));
           }
         }, 100);
       });
     }
 
-    function delay(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-
     async function importModuleFromList(libraryName, urls, retryCount = 1, retryDelayMs = 350) {
       const allErrors = [];
-
       for (const url of urls) {
         for (let attempt = 1; attempt <= retryCount + 1; attempt++) {
           try {
             const mod = await import(url);
             console.info(`[library] ${libraryName} imported from: ${url} (attempt ${attempt})`);
             return { url, mod };
-          } catch (err) {
-            allErrors.push({ url, attempt, error: err });
-            console.error(`[library] ${libraryName} load error`, {
-              library: libraryName,
-              url,
-              attempt,
-              error: err,
-            });
-            console.error('Network Error Details:', err);
-            if (attempt <= retryCount) {
-              await delay(retryDelayMs * attempt);
-            }
+          } catch (error) {
+            allErrors.push({ url, attempt, error });
+            console.error(`[library] ${libraryName} load error`, { library: libraryName, url, attempt, error });
+            console.error('Network Error Details:', error);
+            if (attempt <= retryCount) await delay(retryDelayMs * attempt);
           }
         }
       }
-
       console.error(`[library] ${libraryName} failed on all CDNs`, allErrors);
       throw new Error(`${libraryName} の読み込みに失敗しました（全CDN / 全リトライ失敗）`);
     }
 
     async function ensureLibrariesLoaded() {
-      const loadedSources = {};
       try {
-        const peerImport = await importModuleFromList('PeerJS', [
-          'https://cdn.skypack.dev/peerjs@1.5.5',
+        // 既知の相性問題対策: Skypackは最後に回す
+        const peer = await importModuleFromList('PeerJS', [
           'https://esm.sh/peerjs@1.5.5',
-          'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm'
-        ], 1, 500);
-        loadedSources.peerjs = peerImport.url;
-        PeerCtor = peerImport.mod.Peer || peerImport.mod.default?.Peer || peerImport.mod.default;
+          'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm',
+          'https://cdn.skypack.dev/peerjs@1.5.5'
+        ], 1, 450);
+        PeerCtor = peer.mod.Peer || peer.mod.default?.Peer || peer.mod.default;
 
-        const threeImport = await importModuleFromList('Three.js', [
-          'https://cdn.skypack.dev/three@0.161.0',
+        const three = await importModuleFromList('Three.js', [
           'https://esm.sh/three@0.161.0',
-          'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js'
-        ], 1, 500);
-        loadedSources.three = threeImport.url;
-        THREE_LIB = threeImport.mod;
+          'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js',
+          'https://cdn.skypack.dev/three@0.161.0'
+        ], 1, 450);
+        THREE_LIB = three.mod;
 
-        const cannonImport = await importModuleFromList('Cannon.js', [
-          'https://cdn.skypack.dev/cannon-es@0.20.0',
-          'https://esm.sh/cannon-es@0.20.0'
-        ], 1, 500);
-        loadedSources.cannon = cannonImport.url;
-        CANNON_LIB = cannonImport.mod;
+        const cannon = await importModuleFromList('Cannon.js', [
+          'https://esm.sh/cannon-es@0.20.0',
+          'https://cdn.skypack.dev/cannon-es@0.20.0'
+        ], 1, 450);
+        CANNON_LIB = cannon.mod;
 
         await waitForLibraries();
         state.libsReady = true;
         setStatus(libStatus, 'ライブラリ読み込み完了');
-        console.info('[library] all libraries loaded', loadedSources);
-      } catch (err) {
+      } catch (error) {
         const missing = [];
         if (!PeerCtor) missing.push('PeerJS');
         if (!THREE_LIB) missing.push('Three.js');
         if (!CANNON_LIB) missing.push('Cannon.js');
-        console.error('[library] initialization stopped. Missing libraries:', missing, err);
-        console.error('Network Error Details:', err);
-        throw err;
+        console.error('[library] initialization stopped. Missing libraries:', missing);
+        console.error('Network Error Details:', error);
+        throw error;
       }
     }
 
-    function createSlimeMaterial() {
+    let scene, camera, renderer, world;
+    let slimeMesh, slimeShellMesh, slimeBody, remoteGroup, decorGroup;
+    let localSlimeUniforms = null;
+
+    function createJellyMaterial(color = 0x5eead4) {
       return new THREE_LIB.MeshPhysicalMaterial({
-        color: 0x5eead4,
-        metalness: 0.2,
+        color,
+        metalness: 0.12,
         roughness: 0.03,
-        transmission: 0.95,
+        transmission: 0.98,
         transparent: true,
-        opacity: 0.94,
-        thickness: 2.1,
-        ior: 1.35,
+        opacity: 0.92,
+        thickness: 2.4,
+        ior: 1.38,
         clearcoat: 1,
-        clearcoatRoughness: 0.06,
+        clearcoatRoughness: 0.04,
         specularIntensity: 1,
-        reflectivity: 0.95,
+        reflectivity: 0.98,
       });
+    }
+
+    function attachJitterShader(mat) {
+      const uniforms = {
+        uTime: { value: 0 },
+        uJitter: { value: 0 },
+        uSquash: { value: 0 },
+      };
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = uniforms.uTime;
+        shader.uniforms.uJitter = uniforms.uJitter;
+        shader.uniforms.uSquash = uniforms.uSquash;
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <begin_vertex>',
+          `
+          vec3 transformed = vec3(position);
+          float wobble = sin((position.y * 14.0) + uTime * 18.0) * uJitter * 0.14;
+          transformed += normal * wobble;
+          transformed.y -= uSquash * (1.0 - abs(normal.y)) * 0.32;
+          `
+        );
+      };
+      mat.needsUpdate = true;
+      return uniforms;
+    }
+
+    function addDecorations() {
+      const THREE = THREE_LIB;
+      decorGroup = new THREE.Group();
+      scene.add(decorGroup);
+
+      const rand = (a, b) => a + Math.random() * (b - a);
+      const treeCount = 55;
+      for (let i = 0; i < treeCount; i++) {
+        const g = new THREE.Group();
+        const x = rand(-220, 220);
+        const z = rand(-220, 220);
+        const trunk = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.35, rand(2.2, 3.8), 8),
+          new THREE.MeshStandardMaterial({ color: 0x6b4f2a, roughness: 0.95, metalness: 0.02 })
+        );
+        trunk.position.y = trunk.geometry.parameters.height * 0.5;
+        g.add(trunk);
+
+        const crown = new THREE.Mesh(
+          new THREE.SphereGeometry(rand(1.2, 2.0), 10, 10),
+          new THREE.MeshStandardMaterial({ color: 0x2f9e44, roughness: 0.85, metalness: 0.03 })
+        );
+        crown.position.y = trunk.position.y + trunk.geometry.parameters.height * 0.55 + rand(0.3, 0.9);
+        g.add(crown);
+
+        g.position.set(x, 0, z);
+        decorGroup.add(g);
+      }
+
+      const flowers = [];
+      for (let i = 0; i < 140; i++) {
+        const g = new THREE.Group();
+        const stem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.02, 0.03, rand(0.45, 0.9), 5),
+          new THREE.MeshStandardMaterial({ color: 0x1f9d55 })
+        );
+        stem.position.y = stem.geometry.parameters.height * 0.5;
+        g.add(stem);
+
+        const petalColor = [0xff7eb6, 0xfff3b0, 0xb8f2e6, 0xd0bfff][(Math.random() * 4) | 0];
+        const petal = new THREE.Mesh(
+          new THREE.SphereGeometry(rand(0.08, 0.13), 8, 8),
+          new THREE.MeshStandardMaterial({ color: petalColor, roughness: 0.5 })
+        );
+        petal.position.y = stem.geometry.parameters.height + 0.03;
+        g.add(petal);
+
+        g.position.set(rand(-180, 180), 0, rand(-180, 180));
+        g.userData.baseRot = Math.random() * Math.PI * 2;
+        flowers.push(g);
+        decorGroup.add(g);
+      }
+      decorGroup.userData.flowers = flowers;
     }
 
     async function initScene() {
@@ -528,58 +488,51 @@
       const CANNON = CANNON_LIB;
 
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x87ceeb);
-      scene.fog = new THREE.Fog(0x9bd7ff, 110, 420);
+      scene.background = new THREE.Color(0x8dcfff);
+      scene.fog = new THREE.Fog(0x9bd7ff, 120, 420);
 
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1400);
-      camera.position.set(0, 7, 11);
+      camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 1500);
+      camera.position.set(0, 5, 9);
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.12;
+      renderer.toneMappingExposure = 1.15;
       gameRoot.appendChild(renderer.domElement);
 
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x88aaff, 0.95));
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x7ea5d8, .95));
       const sun = new THREE.DirectionalLight(0xffffff, 1.25);
       sun.position.set(9, 18, 8);
       scene.add(sun);
 
-      const rim = new THREE.PointLight(0x99ddff, 0.8, 45);
-      rim.position.set(-4, 4, -4);
+      const rim = new THREE.PointLight(0x9cd9ff, 0.8, 50);
+      rim.position.set(-4, 5, -4);
       scene.add(rim);
 
-      const floorMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(2000, 2000),
-        new THREE.MeshStandardMaterial({ color: 0x6ee7b7, roughness: 0.95, metalness: 0.02 })
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(2200, 2200),
+        new THREE.MeshStandardMaterial({ color: 0x6ee7b7, roughness: 0.96, metalness: 0.01 })
       );
-      floorMesh.rotation.x = -Math.PI / 2;
-      scene.add(floorMesh);
+      floor.rotation.x = -Math.PI / 2;
+      scene.add(floor);
 
-      slimeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), createSlimeMaterial());
+      slimeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 72, 72), createJellyMaterial(0x5eead4));
       slimeMesh.position.set(0, 2, 0);
+      localSlimeUniforms = attachJitterShader(slimeMesh.material);
 
       slimeShellMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(1.06, 48, 48),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xb6fff6,
-          transparent: true,
-          opacity: 0.2,
-          roughness: 0.02,
-          metalness: 0.05,
-          transmission: 1,
-          thickness: 0.7,
-        })
+        new THREE.SphereGeometry(1.08, 48, 48),
+        new THREE.MeshPhysicalMaterial({ color: 0xb7fff7, transmission: 1, thickness: 0.8, transparent: true, opacity: 0.2, roughness: 0.02 })
       );
       slimeMesh.add(slimeShellMesh);
       scene.add(slimeMesh);
 
       remoteGroup = new THREE.Group();
       scene.add(remoteGroup);
+      addDecorations();
 
-      world = new CANNON.World();
-      world.gravity.set(0, -24, 0);
+      world = new CANNON.World({ gravity: new CANNON.Vec3(0, -24, 0) });
       world.broadphase = new CANNON.NaiveBroadphase();
       world.solver.iterations = 10;
 
@@ -591,28 +544,43 @@
       slimeBody.linearDamping = 0.24;
       world.addBody(slimeBody);
 
-      window.addEventListener('resize', onResize);
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      renderer.domElement.addEventListener('click', () => {
+        if (!state.isChatTyping) renderer.domElement.requestPointerLock();
+      });
+
+      document.addEventListener('pointerlockchange', () => {
+        state.pointerLocked = document.pointerLockElement === renderer.domElement;
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!state.pointerLocked || state.isChatTyping) return;
+        state.cameraYaw -= e.movementX * 0.0023;
+        state.cameraPitch = Math.max(-1.1, Math.min(0.55, state.cameraPitch - e.movementY * 0.0019));
+      });
+
       state.sceneReady = true;
       requestAnimationFrame(loop);
-    }
-
-    function onResize() {
-      if (!renderer) return;
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     function controlStep(dt, nowMs) {
       if (state.isChatTyping) return;
       const CANNON = CANNON_LIB;
+      const forwardKey = (state.keys['KeyW'] || state.keys['ArrowUp'] ? 1 : 0) - (state.keys['KeyS'] || state.keys['ArrowDown'] ? 1 : 0);
+      const strafeKey = (state.keys['KeyD'] || state.keys['ArrowRight'] ? 1 : 0) - (state.keys['KeyA'] || state.keys['ArrowLeft'] ? 1 : 0);
 
       const speed = 14;
       const force = new CANNON.Vec3(0, 0, 0);
-      const forward = (state.keys['KeyW'] || state.keys['ArrowUp'] ? 1 : 0) - (state.keys['KeyS'] || state.keys['ArrowDown'] ? 1 : 0);
-      const strafe = (state.keys['KeyD'] || state.keys['ArrowRight'] ? 1 : 0) - (state.keys['KeyA'] || state.keys['ArrowLeft'] ? 1 : 0);
-      force.x = strafe * speed;
-      force.z = -forward * speed;
+      const cos = Math.cos(state.cameraYaw), sin = Math.sin(state.cameraYaw);
+      const dirX = strafeKey * cos - forwardKey * sin;
+      const dirZ = -forwardKey * cos - strafeKey * sin;
+      force.x = dirX * speed;
+      force.z = dirZ * speed;
       slimeBody.applyForce(force, slimeBody.position);
 
       const nearGround = slimeBody.position.y <= 1.05;
@@ -621,17 +589,17 @@
       if (state.keys['Space'] && state.canJump) {
         slimeBody.velocity.y = 10;
         state.canJump = false;
-        state.squash = Math.max(state.squash, 0.26);
-        state.jitter = 0.16;
+        state.squash = Math.max(state.squash, 0.24);
+        state.jitter = 0.14;
       }
 
-      const horizontalSpeed = Math.hypot(slimeBody.velocity.x, slimeBody.velocity.z);
-      const wobble = Math.min(0.28, horizontalSpeed * 0.017) + state.squash;
-      const pulse = 0.065 * Math.sin(nowMs * 0.032);
-      const tremble = 0.02 * Math.sin(nowMs * 0.17);
+      const hSpeed = Math.hypot(slimeBody.velocity.x, slimeBody.velocity.z);
+      const wobble = Math.min(0.3, hSpeed * 0.017) + state.squash;
+      const pulse = 0.07 * Math.sin(nowMs * 0.031);
+      const tremble = 0.025 * Math.sin(nowMs * 0.19);
 
-      const targetY = 1 + wobble * 0.9 + pulse;
-      const targetXZ = 1 - wobble * 0.48;
+      const targetY = 1 + wobble * 0.95 + pulse;
+      const targetXZ = 1 - wobble * 0.52;
       state.localScale.x += (targetXZ - state.localScale.x) * Math.min(1, dt * 13);
       state.localScale.y += (targetY - state.localScale.y) * Math.min(1, dt * 13);
       state.localScale.z += (targetXZ - state.localScale.z) * Math.min(1, dt * 13);
@@ -639,24 +607,47 @@
       const jitterX = (Math.random() - 0.5) * state.jitter + tremble;
       const jitterZ = (Math.random() - 0.5) * state.jitter - tremble;
       slimeMesh.scale.set(state.localScale.x + jitterX, state.localScale.y, state.localScale.z + jitterZ);
-      slimeMesh.rotation.y = 0.04 * Math.sin(nowMs * 0.01);
-      slimeShellMesh.rotation.y += 0.75 * dt;
+      slimeShellMesh.rotation.y += 0.8 * dt;
 
-      state.squash *= Math.max(0, 1 - dt * 6.2);
-      state.jitter *= Math.max(0, 1 - dt * 5.0);
+      // 着地グニャッ演出
+      if (nearGround && Math.abs(slimeBody.velocity.y) < 0.55) {
+        state.squash = Math.max(state.squash, 0.12);
+        state.jitter = Math.max(state.jitter, 0.05);
+      }
 
-      if (nearGround && Math.abs(slimeBody.velocity.y) < 0.65) {
-        state.squash = Math.max(state.squash, 0.1);
-        state.jitter = Math.max(state.jitter, 0.04);
+      state.squash *= Math.max(0, 1 - dt * 6.3);
+      state.jitter *= Math.max(0, 1 - dt * 5.2);
+
+      if (localSlimeUniforms) {
+        localSlimeUniforms.uTime.value = nowMs / 1000;
+        localSlimeUniforms.uJitter.value = state.jitter;
+        localSlimeUniforms.uSquash.value = state.squash;
       }
     }
 
     function updateCamera() {
       const THREE = THREE_LIB;
       const p = slimeMesh.position;
-      const desired = new THREE.Vector3(p.x + 0.2, p.y + 4.9, p.z + 9.0);
-      camera.position.lerp(desired, 0.07);
-      camera.lookAt(p.x, p.y + 0.7, p.z);
+      const dist = 8.8;
+      const eye = new THREE.Vector3(
+        p.x - Math.sin(state.cameraYaw) * dist,
+        p.y + 4.5 + Math.sin(state.cameraPitch) * 2,
+        p.z - Math.cos(state.cameraYaw) * dist,
+      );
+      camera.position.lerp(eye, 0.1);
+      const look = new THREE.Vector3(
+        p.x + Math.sin(state.cameraYaw) * 3,
+        p.y + 1.0 + Math.sin(state.cameraPitch) * 2,
+        p.z + Math.cos(state.cameraYaw) * 3,
+      );
+      camera.lookAt(look);
+    }
+
+    function animateDecor(nowMs) {
+      if (!decorGroup?.userData?.flowers) return;
+      for (const f of decorGroup.userData.flowers) {
+        f.rotation.z = Math.sin(nowMs * 0.002 + f.userData.baseRot) * 0.12;
+      }
     }
 
     function applyRemoteState(peerId, data) {
@@ -664,28 +655,30 @@
       const THREE = THREE_LIB;
       let remote = state.remotePlayers.get(peerId);
       if (!remote) {
-        const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 40), new THREE.MeshPhysicalMaterial({
-          color: 0x60a5fa,
-          metalness: 0.2,
-          roughness: 0.12,
-          transmission: 0.72,
-          transparent: true,
-          opacity: 0.84,
-        }));
+        const mat = createJellyMaterial(0x60a5fa);
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 42, 42), mat);
+        const uniforms = attachJitterShader(mat);
+        remote = { mesh, uniforms, squash: 0, jitter: 0 };
         remoteGroup.add(mesh);
-        remote = { mesh };
         state.remotePlayers.set(peerId, remote);
       }
       remote.mesh.position.set(data.x || 0, data.y || 2, data.z || 0);
       remote.mesh.scale.set(data.sx || 1, data.sy || 1, data.sz || 1);
+      remote.jitter = data.jitter || 0;
+      remote.squash = data.squash || 0;
+      if (remote.uniforms) {
+        remote.uniforms.uTime.value = performance.now() / 1000;
+        remote.uniforms.uJitter.value = remote.jitter;
+        remote.uniforms.uSquash.value = remote.squash;
+      }
     }
 
     function removeRemote(peerId) {
-      const remote = state.remotePlayers.get(peerId);
-      if (!remote || !remoteGroup) return;
-      remoteGroup.remove(remote.mesh);
-      remote.mesh.geometry.dispose();
-      remote.mesh.material.dispose();
+      const r = state.remotePlayers.get(peerId);
+      if (!r) return;
+      remoteGroup.remove(r.mesh);
+      r.mesh.geometry.dispose();
+      r.mesh.material.dispose();
       state.remotePlayers.delete(peerId);
     }
 
@@ -694,7 +687,6 @@
       const now = performance.now();
       if (now - state.lastSyncAt < 90) return;
       state.lastSyncAt = now;
-
       broadcast({
         type: 'state',
         name: state.username,
@@ -704,7 +696,28 @@
         sx: slimeMesh.scale.x,
         sy: slimeMesh.scale.y,
         sz: slimeMesh.scale.z,
+        jitter: state.jitter,
+        squash: state.squash,
       });
+    }
+
+    function toggleChatInput(show) {
+      state.isChatTyping = show;
+      chatInputRow.classList.toggle('active', show);
+      if (show) {
+        chatInput.value = '';
+        chatInput.focus();
+        if (document.pointerLockElement) document.exitPointerLock();
+      } else {
+        chatInput.blur();
+      }
+    }
+
+    function sendChatMessage(text) {
+      const msg = text.trim();
+      if (!msg) return;
+      addChatLine('me', `${state.username}: ${msg}`);
+      broadcast({ type: 'chat', name: state.username, text: msg });
     }
 
     let prevTime = performance.now();
@@ -715,39 +728,16 @@
 
       controlStep(dt, now);
       world.step(1 / 60, dt, 3);
-
       slimeMesh.position.set(slimeBody.position.x, slimeBody.position.y, slimeBody.position.z);
+      animateDecor(now);
       updateCamera();
       syncState();
-
       renderer.render(scene, camera);
       requestAnimationFrame(loop);
     }
 
-    function toggleChatInput(show) {
-      state.isChatTyping = show;
-      chatInputRow.classList.toggle('active', show);
-      if (show) {
-        chatInput.value = '';
-        chatInput.focus();
-      } else {
-        chatInput.blur();
-      }
-    }
-
-    function sendChatMessage(text) {
-      const message = text.trim();
-      if (!message) return;
-      addChatLine('me', `${state.username}: ${message}`);
-      broadcast({ type: 'chat', name: state.username, text: message });
-    }
-
-    async function startGame(networkMode, room) {
-      if (!state.libsReady) {
-        setStatus(menuStatus, 'ライブラリ読み込み待機中です。少し待ってください。', true);
-        return;
-      }
-
+    async function startGame(mode, room) {
+      if (!state.libsReady) return setStatus(menuStatus, 'ライブラリ読み込み待機中です。', true);
       loginScreen.classList.add('hidden');
       menuScreen.classList.add('hidden');
       gameRoot.classList.remove('hidden');
@@ -755,85 +745,77 @@
       nameLabel.textContent = `Player: ${state.username}`;
 
       if (!state.sceneReady) {
-        try {
-          await initScene();
-        } catch (err) {
+        try { await initScene(); }
+        catch (error) {
+          loginScreen.classList.remove('hidden');
           gameRoot.classList.add('hidden');
           hud.classList.add('hidden');
-          loginScreen.classList.remove('hidden');
-          setStatus(loginStatus, err.message || '初期化に失敗しました', true);
+          setStatus(loginStatus, error.message || '初期化に失敗しました', true);
           return;
         }
       }
-
       addChatLine('system', `${state.username} がゲームに参加しました`);
-      await setupNetworking(networkMode, room);
+      await setupNetworking(mode, room);
       updateNetworkUI();
     }
 
-    async function handleRegister() {
-      const username = usernameInput.value.trim();
-      const password = passwordInput.value;
-      if (!username || !password) {
-        setStatus(loginStatus, 'ユーザー名とパスワードを入力してください', true);
-        return;
-      }
+    function cleanupAndBackToTitle() {
+      if (document.pointerLockElement) document.exitPointerLock();
+      state.keys = {};
+      state.isChatTyping = false;
+      chatInputRow.classList.remove('active');
 
+      if (state.peer) {
+        try { state.peer.destroy(); } catch {}
+      }
+      state.peer = null;
+      state.peerId = '';
+      state.connections.clear();
+
+      for (const pid of [...state.remotePlayers.keys()]) removeRemote(pid);
+      state.remotePlayers.clear();
+
+      gameRoot.classList.add('hidden');
+      hud.classList.add('hidden');
+      menuScreen.classList.remove('hidden');
+      setStatus(menuStatus, 'タイトルへ戻りました。モードを選んで再開できます。');
+    }
+
+    async function handleRegister() {
+      const u = usernameInput.value.trim();
+      const p = passwordInput.value;
+      if (!u || !p) return setStatus(loginStatus, 'ユーザー名とパスワードを入力してください', true);
       try {
-        const confirmedName = await registerAccount(username, password);
-        state.username = confirmedName;
-        setStatus(loginStatus, '新規登録に成功しました。ログイン済みです。');
+        state.username = await registerAccount(u, p);
+        setStatus(loginStatus, '新規登録に成功しました。');
         loginScreen.classList.add('hidden');
         menuScreen.classList.remove('hidden');
-        setStatus(menuStatus, 'モードを選んで開始してください');
-      } catch (err) {
-        setStatus(loginStatus, err.message || '新規登録に失敗しました', true);
-      }
+      } catch (e) { setStatus(loginStatus, e.message || '新規登録に失敗', true); }
     }
 
     async function handleLogin() {
-      const username = usernameInput.value.trim();
-      const password = passwordInput.value;
-      if (!username || !password) {
-        setStatus(loginStatus, 'ユーザー名とパスワードを入力してください', true);
-        return;
-      }
-
+      const u = usernameInput.value.trim();
+      const p = passwordInput.value;
+      if (!u || !p) return setStatus(loginStatus, 'ユーザー名とパスワードを入力してください', true);
       try {
-        const confirmedName = await loginAccount(username, password);
-        state.username = confirmedName;
+        state.username = await loginAccount(u, p);
         setStatus(loginStatus, 'ログイン成功');
         loginScreen.classList.add('hidden');
         menuScreen.classList.remove('hidden');
-        setStatus(menuStatus, 'モードを選んで開始してください');
-      } catch (err) {
-        setStatus(loginStatus, err.message || 'ログイン失敗', true);
-      }
+      } catch (e) { setStatus(loginStatus, e.message || 'ログイン失敗', true); }
     }
 
-    function bindUIEvents() {
+    function bindUI() {
       loginBtn.addEventListener('click', handleLogin);
       registerBtn.addEventListener('click', handleRegister);
-
-      quickPlayBtn.addEventListener('click', async () => {
-        setStatus(menuStatus, 'クイックプレイを開始します...');
-        await startGame('online', 'quick-flat');
-      });
-
-      joinRoomBtn.addEventListener('click', async () => {
+      quickPlayBtn.addEventListener('click', () => startGame('online', 'quick-flat'));
+      joinRoomBtn.addEventListener('click', () => {
         const room = roomInput.value.trim();
-        if (!room) {
-          setStatus(menuStatus, '部屋番号を入力してください', true);
-          return;
-        }
-        setStatus(menuStatus, `部屋 ${room} へ入室します...`);
-        await startGame('online', room);
+        if (!room) return setStatus(menuStatus, '部屋番号を入力してください', true);
+        startGame('online', room);
       });
-
-      soloBtn.addEventListener('click', async () => {
-        setStatus(menuStatus, 'シングルプレイで開始します');
-        await startGame('solo', 'solo');
-      });
+      soloBtn.addEventListener('click', () => startGame('solo', 'solo'));
+      exitBtn.addEventListener('click', cleanupAndBackToTitle);
 
       document.addEventListener('keydown', (e) => {
         if (!state.sceneReady) return;
@@ -843,27 +825,21 @@
           toggleChatInput(true);
           return;
         }
-
         if (state.isChatTyping && e.code === 'Enter') {
           e.preventDefault();
           sendChatMessage(chatInput.value);
           toggleChatInput(false);
           return;
         }
-
         if (state.isChatTyping && e.code === 'Escape') {
           e.preventDefault();
           toggleChatInput(false);
           return;
         }
-
         state.keys[e.code] = true;
       });
 
-      document.addEventListener('keyup', (e) => {
-        state.keys[e.code] = false;
-      });
-
+      document.addEventListener('keyup', (e) => { state.keys[e.code] = false; });
       chatInput.addEventListener('keydown', (e) => {
         if (e.code === 'Enter') {
           e.preventDefault();
@@ -871,19 +847,12 @@
           toggleChatInput(false);
         }
       });
-
-      usernameInput.addEventListener('keydown', (e) => {
-        if (e.code === 'Enter') handleLogin();
-      });
-
-      passwordInput.addEventListener('keydown', (e) => {
-        if (e.code === 'Enter') handleLogin();
-      });
+      usernameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') handleLogin(); });
+      passwordInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') handleLogin(); });
     }
 
     async function bootstrap() {
-      bindUIEvents();
-
+      bindUI();
       usernameInput.value = localStorage.getItem(LAST_USER_KEY) || '';
       quickPlayBtn.disabled = true;
       joinRoomBtn.disabled = true;
@@ -894,8 +863,8 @@
         quickPlayBtn.disabled = false;
         joinRoomBtn.disabled = false;
         soloBtn.disabled = false;
-      } catch (err) {
-        setStatus(libStatus, `ライブラリ読み込み失敗: ${err.message}。ネットワーク制限により3Dライブラリを読み込めません。広告ブロックをオフにするか、別の回線を試してください。詳細はブラウザのコンソール（F12）を確認してください。`, true);
+      } catch (error) {
+        setStatus(libStatus, `ライブラリ読み込み失敗: ${error.message}。ネットワーク制限により3Dライブラリを読み込めません。広告ブロックをオフにするか、別の回線を試してください。詳細はF12コンソールを確認。`, true);
       }
     }
 

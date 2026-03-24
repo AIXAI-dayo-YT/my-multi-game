@@ -386,6 +386,7 @@
 
     let scene, camera, renderer, world;
     let slimeMesh, slimeShellMesh, slimeBody, remoteGroup, decorGroup;
+    let softBody = null;
     let localSlimeUniforms = null;
 
     function createJellyMaterial(color = 0x5eead4) {
@@ -434,6 +435,80 @@
       };
       mat.needsUpdate = true;
       return uniforms;
+    }
+
+    function initSoftBody(mesh) {
+      const geo = mesh.geometry;
+      const pos = geo.attributes.position;
+      const nodes = [];
+      for (let i = 0; i < pos.count; i++) {
+        const p = new THREE_LIB.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+        nodes.push({
+          rest: p.clone(),
+          pos: p.clone(),
+          vel: new THREE_LIB.Vector3(),
+          mass: 1,
+        });
+      }
+
+      const springs = [];
+      const idx = geo.index ? geo.index.array : null;
+      const edges = new Set();
+      const addEdge = (a, b) => {
+        const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+        if (edges.has(key)) return;
+        edges.add(key);
+        const restLength = nodes[a].rest.distanceTo(nodes[b].rest);
+        springs.push({ i: a, j: b, restLength, stiffness: 22 });
+      };
+      if (idx) {
+        for (let i = 0; i < idx.length; i += 3) {
+          addEdge(idx[i], idx[i + 1]);
+          addEdge(idx[i + 1], idx[i + 2]);
+          addEdge(idx[i + 2], idx[i]);
+        }
+      }
+
+      return { geo, nodes, springs };
+    }
+
+    function stepSoftBody(dt, speed, impact, nearGround) {
+      if (!softBody) return;
+      const dt60 = Math.min(1.8, dt * 60);
+      const excite = Math.min(1.2, speed * 0.03 + impact * 2.2);
+
+      for (const n of softBody.nodes) {
+        const toRest = n.rest.clone().sub(n.pos);
+        n.vel.addScaledVector(toRest, 0.12 * dt60);
+        if (nearGround) n.vel.y -= 0.015 * dt60;
+        n.vel.x += (Math.random() - 0.5) * 0.012 * excite;
+        n.vel.z += (Math.random() - 0.5) * 0.012 * excite;
+      }
+
+      for (const s of softBody.springs) {
+        const a = softBody.nodes[s.i], b = softBody.nodes[s.j];
+        const d = b.pos.clone().sub(a.pos);
+        const len = d.length() || 0.0001;
+        const stretch = (len - s.restLength);
+        const force = d.multiplyScalar((stretch * s.stiffness * dt60) / len);
+        a.vel.add(force.clone().multiplyScalar(1 / a.mass));
+        b.vel.add(force.clone().multiplyScalar(-1 / b.mass));
+      }
+
+      for (const n of softBody.nodes) {
+        n.vel.multiplyScalar(0.87);
+        n.pos.addScaledVector(n.vel, 0.18 * dt60);
+        const maxR = n.rest.length() * 1.45;
+        if (n.pos.length() > maxR) n.pos.setLength(maxR);
+      }
+
+      const pos = softBody.geo.attributes.position;
+      for (let i = 0; i < softBody.nodes.length; i++) {
+        const p = softBody.nodes[i].pos;
+        pos.setXYZ(i, p.x, p.y, p.z);
+      }
+      pos.needsUpdate = true;
+      softBody.geo.computeVertexNormals();
     }
 
     function hashNoise(x, z) {
@@ -585,9 +660,10 @@
       floor.rotation.x = -Math.PI / 2;
       scene.add(floor);
 
-      slimeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 72, 72), createJellyMaterial(0x5eead4));
+      slimeMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 3), createJellyMaterial(0x5eead4));
       slimeMesh.position.set(0, 2, 0);
       localSlimeUniforms = attachJitterShader(slimeMesh.material);
+      softBody = initSoftBody(slimeMesh);
 
       slimeShellMesh = new THREE.Mesh(
         new THREE.SphereGeometry(1.08, 48, 48),
@@ -611,6 +687,11 @@
       groundBody.position.set(-terrainSize / 2, 0, terrainSize / 2);
       groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
       world.addBody(groundBody);
+      // 安定した当たり判定のため保険としてフラット地面も追加
+      const planeBody = new CANNON.Body({ mass: 0, material: groundMaterial, shape: new CANNON.Plane() });
+      planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+      planeBody.position.set(0, -0.2, 0);
+      world.addBody(planeBody);
 
       const slimeMaterial = new CANNON.Material('slime');
       slimeBody = new CANNON.Body({ mass: 1.2, material: slimeMaterial, shape: new CANNON.Sphere(1), position: new CANNON.Vec3(0, 4.8, 0) });
@@ -651,7 +732,7 @@
       const forwardKey = (state.keys['KeyW'] || state.keys['ArrowUp'] ? 1 : 0) - (state.keys['KeyS'] || state.keys['ArrowDown'] ? 1 : 0);
       const strafeKey = (state.keys['KeyD'] || state.keys['ArrowRight'] ? 1 : 0) - (state.keys['KeyA'] || state.keys['ArrowLeft'] ? 1 : 0);
 
-      const speed = 14;
+      const speed = 22;
       const force = new CANNON.Vec3(0, 0, 0);
       const sin = Math.sin(state.cameraYaw), cos = Math.cos(state.cameraYaw);
       const dirX = forwardKey * sin + strafeKey * cos;
@@ -660,7 +741,7 @@
       force.z = dirZ * speed;
       slimeBody.applyForce(force, slimeBody.position);
 
-      const nearGround = slimeBody.position.y <= 1.05;
+      const nearGround = slimeBody.position.y <= 1.35;
       if (nearGround) state.canJump = true;
 
       if (state.keys['Space'] && state.canJump) {
@@ -677,12 +758,12 @@
       state.wasSpaceDown = !!state.keys['Space'];
 
       const hSpeed = Math.hypot(slimeBody.velocity.x, slimeBody.velocity.z);
-      const wobble = Math.min(0.3, hSpeed * 0.017) + state.squash;
+      const wobble = Math.min(0.45, hSpeed * 0.024) + state.squash;
       const pulse = 0.07 * Math.sin(nowMs * 0.031);
       const tremble = 0.025 * Math.sin(nowMs * 0.19);
-      const idleFlatten = nearGround ? 0.12 : 0;
-      const targetY = 1 - idleFlatten + wobble * 0.85 + pulse;
-      const targetXZ = 1 + idleFlatten * 0.65 - wobble * 0.43;
+      const idleFlatten = nearGround ? 0.2 : 0.04;
+      const targetY = 1 - idleFlatten + wobble * 0.6 + pulse;
+      const targetXZ = 1 + idleFlatten * 0.88 - wobble * 0.34;
       state.localScale.x += (targetXZ - state.localScale.x) * Math.min(1, dt * 13);
       state.localScale.y += (targetY - state.localScale.y) * Math.min(1, dt * 13);
       state.localScale.z += (targetXZ - state.localScale.z) * Math.min(1, dt * 13);
@@ -819,6 +900,9 @@
       controlStep(dt, now);
       world.step(1 / 60, dt, 3);
       slimeMesh.position.set(slimeBody.position.x, slimeBody.position.y, slimeBody.position.z);
+      const hSpeed = Math.hypot(slimeBody.velocity.x, slimeBody.velocity.z);
+      const landingImpact = Math.max(0, Math.abs(slimeBody.velocity.y) - 1.5) * 0.05;
+      stepSoftBody(dt, hSpeed, landingImpact, slimeBody.position.y <= 1.35);
       animateDecor(now);
       updateCamera();
       syncState();

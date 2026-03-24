@@ -251,6 +251,9 @@
       jitter: 0,
       lastSyncAt: 0,
     };
+    let THREE_LIB = null;
+    let CANNON_LIB = null;
+    let PeerCtor = null;
 
     function setStatus(el, text, warn = false) {
       el.textContent = text;
@@ -353,7 +356,7 @@
 
     function createPeer(desiredId) {
       return new Promise((resolve, reject) => {
-        const peer = desiredId ? new window.Peer(desiredId) : new window.Peer();
+        const peer = desiredId ? new PeerCtor(desiredId) : new PeerCtor();
         let opened = false;
 
         peer.on('open', (id) => {
@@ -415,7 +418,7 @@
       return new Promise((resolve, reject) => {
         const start = performance.now();
         const timer = setInterval(() => {
-          if (window.THREE && window.CANNON && window.Peer) {
+          if (THREE_LIB && CANNON_LIB && PeerCtor) {
             clearInterval(timer);
             resolve();
             return;
@@ -432,25 +435,15 @@
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    async function loadScriptFromList(libraryName, urls, retryCount = 2, retryDelayMs = 350) {
+    async function importModuleFromList(libraryName, urls, retryCount = 1, retryDelayMs = 350) {
       const allErrors = [];
 
       for (const url of urls) {
         for (let attempt = 1; attempt <= retryCount + 1; attempt++) {
           try {
-            await new Promise((resolve, reject) => {
-              const script = document.createElement('script');
-              script.src = url;
-              script.async = true;
-              script.onload = () => resolve();
-              script.onerror = (event) => {
-                script.remove();
-                reject(new Error(`${libraryName} load failed (attempt ${attempt})`));
-              };
-              document.head.appendChild(script);
-            });
-            console.info(`[library] ${libraryName} loaded from: ${url} (attempt ${attempt})`);
-            return url;
+            const mod = await import(url);
+            console.info(`[library] ${libraryName} imported from: ${url} (attempt ${attempt})`);
+            return { url, mod };
           } catch (err) {
             allErrors.push({ url, attempt, error: err });
             console.error(`[library] ${libraryName} load error`, {
@@ -459,6 +452,7 @@
               attempt,
               error: err,
             });
+            console.error('Network Error Details:', err);
             if (attempt <= retryCount) {
               await delay(retryDelayMs * attempt);
             }
@@ -473,23 +467,28 @@
     async function ensureLibrariesLoaded() {
       const loadedSources = {};
       try {
-        loadedSources.peerjs = await loadScriptFromList('PeerJS', [
-          'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js',
-          'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js',
-          'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js'
-        ], 2, 400);
+        const peerImport = await importModuleFromList('PeerJS', [
+          'https://cdn.skypack.dev/peerjs@1.5.5',
+          'https://esm.sh/peerjs@1.5.5',
+          'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm'
+        ], 1, 500);
+        loadedSources.peerjs = peerImport.url;
+        PeerCtor = peerImport.mod.Peer || peerImport.mod.default?.Peer || peerImport.mod.default;
 
-        loadedSources.three = await loadScriptFromList('Three.js', [
-          'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js',
-          'https://cdnjs.cloudflare.com/ajax/libs/three.js/r161/three.min.js',
-          'https://unpkg.com/three@0.161.0/build/three.min.js'
-        ], 2, 400);
+        const threeImport = await importModuleFromList('Three.js', [
+          'https://cdn.skypack.dev/three@0.161.0',
+          'https://esm.sh/three@0.161.0',
+          'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js'
+        ], 1, 500);
+        loadedSources.three = threeImport.url;
+        THREE_LIB = threeImport.mod;
 
-        loadedSources.cannon = await loadScriptFromList('Cannon.js', [
-          'https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js',
-          'https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js',
-          'https://unpkg.com/cannon@0.6.2/build/cannon.min.js'
-        ], 2, 400);
+        const cannonImport = await importModuleFromList('Cannon.js', [
+          'https://cdn.skypack.dev/cannon-es@0.20.0',
+          'https://esm.sh/cannon-es@0.20.0'
+        ], 1, 500);
+        loadedSources.cannon = cannonImport.url;
+        CANNON_LIB = cannonImport.mod;
 
         await waitForLibraries();
         state.libsReady = true;
@@ -497,16 +496,17 @@
         console.info('[library] all libraries loaded', loadedSources);
       } catch (err) {
         const missing = [];
-        if (!window.Peer) missing.push('PeerJS');
-        if (!window.THREE) missing.push('Three.js');
-        if (!window.CANNON) missing.push('Cannon.js');
+        if (!PeerCtor) missing.push('PeerJS');
+        if (!THREE_LIB) missing.push('Three.js');
+        if (!CANNON_LIB) missing.push('Cannon.js');
         console.error('[library] initialization stopped. Missing libraries:', missing, err);
+        console.error('Network Error Details:', err);
         throw err;
       }
     }
 
     function createSlimeMaterial() {
-      return new window.THREE.MeshPhysicalMaterial({
+      return new THREE_LIB.MeshPhysicalMaterial({
         color: 0x5eead4,
         metalness: 0.2,
         roughness: 0.03,
@@ -524,8 +524,8 @@
 
     async function initScene() {
       await waitForLibraries();
-      const THREE = window.THREE;
-      const CANNON = window.CANNON;
+      const THREE = THREE_LIB;
+      const CANNON = CANNON_LIB;
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x87ceeb);
@@ -605,7 +605,7 @@
 
     function controlStep(dt, nowMs) {
       if (state.isChatTyping) return;
-      const CANNON = window.CANNON;
+      const CANNON = CANNON_LIB;
 
       const speed = 14;
       const force = new CANNON.Vec3(0, 0, 0);
@@ -652,7 +652,7 @@
     }
 
     function updateCamera() {
-      const THREE = window.THREE;
+      const THREE = THREE_LIB;
       const p = slimeMesh.position;
       const desired = new THREE.Vector3(p.x + 0.2, p.y + 4.9, p.z + 9.0);
       camera.position.lerp(desired, 0.07);
@@ -661,7 +661,7 @@
 
     function applyRemoteState(peerId, data) {
       if (!state.sceneReady || !remoteGroup) return;
-      const THREE = window.THREE;
+      const THREE = THREE_LIB;
       let remote = state.remotePlayers.get(peerId);
       if (!remote) {
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 40), new THREE.MeshPhysicalMaterial({
@@ -895,7 +895,7 @@
         joinRoomBtn.disabled = false;
         soloBtn.disabled = false;
       } catch (err) {
-        setStatus(libStatus, `ライブラリ読み込み失敗: ${err.message}（詳細はブラウザのコンソール（F12）を確認してください）`, true);
+        setStatus(libStatus, `ライブラリ読み込み失敗: ${err.message}。ネットワーク制限により3Dライブラリを読み込めません。広告ブロックをオフにするか、別の回線を試してください。詳細はブラウザのコンソール（F12）を確認してください。`, true);
       }
     }
 
